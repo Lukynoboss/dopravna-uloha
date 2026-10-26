@@ -53,12 +53,80 @@ Ručne (ktorýkoľvek systém): `python -m venv .venv`, potom `pip install -r re
   s ručným výpočtom.
 - **Vyhodnotenie** uloženého behu – podrobné štatistiky (mediány, intervaly spoľahlivosti, Wilcoxonov test) a grafy.
 
+## Nové (vymyslené) metódy: ďalšie tri rohy
+
+Okrem severozápadného rohu z prednášky sú v programe aj tri vymyslené „rohové“ metódy. Všetky plnia
+tabuľku vždy maximálnym množstvom min(a_i, b_j), bez ohľadu na ceny, a pri súčasnom vyčerpaní kapacity aj
+požiadavky škrtajú riadok. Dajú sa vyskúšať vo Vlastnej úlohe aj s celým postupom.
+
+| skratka | začína v rohu | poradie dodávateľov | poradie odberateľov |
+|---|---|---|---|
+| SZR (prednáška) | ľavý horný | D1, D2, … | O1, O2, … |
+| **JVR** | pravý dolný | od posledného | od posledného |
+| **SVR** | pravý horný | D1, D2, … | od posledného |
+| **JZR** | ľavý dolný | od posledného | O1, O2, … |
+
+**Porovnanie na 20 000 náhodných úlohách** (rovnaké úlohy ako hlavný beh, seed 20261025):
+
+| metóda | trafila optimum | priemerná odchýlka | kroky MODI |
+|---|---|---|---|
+| SZR | 0,03 % | 216,8 % | 26,4 |
+| JVR | 0,03 % | 216,8 % | 26,4 |
+| SVR | 0,02 % | 216,1 % | 26,5 |
+| JZR | 0,02 % | 216,1 % | 26,5 |
+| IM | 0,92 % | 36,8 % | 10,1 |
+| VAM | 5,91 % | 15,2 % | 6,3 |
+
+**Zistenia:**
+
+1. **JVR dá vždy presne ten istý plán ako SZR a JZR vždy ten istý ako SVR** (100 % úloh). Predstav si všetok
+   tovar ako úsečku dĺžky T. Dodávatelia si ju rozdelia na úseky v nejakom poradí, odberatelia tiež. Rohová
+   metóda pošle z Di do Oj presne toľko, koľko sa ich úseky prekrývajú. JVR číta tú istú úsečku ako SZR, len
+   od druhého konca – a prekrytie úsekov nezávisí od smeru. Rovnako JZR je SVR čítaná odzadu. Rozdiel môže
+   byť len v tom, ktoré pole s nulou sa pri degenerácii doplní do bázy; to zmení počet krokov MODI, nie optimum.
+2. **SVR (a JZR) dáva iný plán ako SZR v každej úlohe** – obracia poradie len jednej strany, takže úseky sa
+   prekrývajú inak. Lepšia ako SZR je však len v 50,1 % úloh, teda je to hod mincou: rohové metódy
+   nehľadia na ceny, a keď sú ceny náhodné, je jedno, z ktorého rohu začneme.
+3. Ani lepší z dvoch rohov (min SZR, SVR) nepomôže: odchýlka 191,6 %. Rozhodujúce je prihliadať na ceny –
+   preto sú IM a VAM mnohonásobne lepšie.
+
+## Nové (vymyslené) metódy s ohľadom na ceny: MDD a PVM
+
+Cieľom bolo vymyslieť metódu, ktorá sa kvalitou priblíži k VAM. Vyskúšalo sa viac nápadov (napr. „ľútostná“
+matica, váženie diferencie množstvom, čistá ľútosť) a vybrali sa dva najlepšie.
+
+**MDD – metóda dvojitej diferencie.** Ako pri VAM sa spočítajú diferencie všetkých riadkov a stĺpcov
+(rozdiel dvoch najnižších cien). Každé pole dostane skóre = diferencia jeho riadku, ak je v riadku
+najlacnejšie, + diferencia jeho stĺpca, ak je v stĺpci najlacnejšie. Obsadí sa pole s najväčším skóre
+(pri zhode nižšia cena, potom vyšší riadok a ľavejší stĺpec). Rozdiel oproti VAM: pole, ktoré je
+najlacnejšie v riadku aj v stĺpci zároveň, dostane obe diferencie – je „dvojnásobne naliehavé“.
+Dá sa robiť ručne rovnako ako VAM.
+
+**PVM – predvídavá metóda.** V každom kroku zoberie 3 polia s najväčším skóre MDD (kandidátov). Pre každého
+skúsi: obsadí ho a zvyšok úlohy dopočíta metódou VAM. Naozaj obsadí toho kandidáta, pri ktorom vyšla celková
+cena najnižšia – „pozrie sa dopredu“, čo jej voľba spôsobí. Ručne je prácna, počítač ju zvládne rýchlo.
+
+**Porovnanie na 20 000 náhodných úlohách** (rovnaké úlohy ako hlavný beh, seed 20261025):
+
+| metóda | trafila optimum | priemerná odchýlka | medián | kroky MODI |
+|---|---|---|---|---|
+| VAM | 5,91 % | 15,2 % | 11,1 % | 6,3 |
+| **MDD** | 4,71 % | **15,4 %** | 11,3 % | 6,4 |
+| **PVM** | **12,34 %** | **7,8 %** | **4,9 %** | **5,0** |
+| IM | 0,92 % | 36,8 % | 30,6 % | 10,1 |
+
+- **MDD je takmer rovnako dobrá ako VAM** (15,4 % oproti 15,2 %). V 32,6 % úloh dajú rovnaké z,
+  v 29,3 % je lepšia MDD, v 38,1 % VAM.
+- **PVM je približne dvakrát lepšia ako VAM:** odchýlka 7,8 %, optimum trafí hneď v 12,3 % úloh a MODI
+  potrebuje najmenej krokov. Lepšia ako VAM je v 83,0 % úloh, horšia len v 0,3 %. Výhoda platí pri malých
+  aj veľkých úlohách (pri max(m, n) 16–20: VAM 18,3 %, PVM 9,8 %). Cenou je viac výpočtov.
+
 ## Súbory
 
 | súbor | čo obsahuje |
 |---|---|
 | `aplikacia.py` | grafické okno |
-| `metody.py` | algoritmy SZR, IM, VAM, MODI, vyrovnanie úlohy, degenerácia |
+| `metody.py` | algoritmy SZR, IM, VAM, nové metódy JVR, SVR, JZR, MDD, PVM, MODI, vyrovnanie úlohy, degenerácia |
 | `generator.py` | náhodné úlohy (úloha je určená seedom a svojím číslom → výsledky sa dajú zopakovať) |
 | `simulacia.py` | hromadný výpočet na viacerých jadrách (aj z príkazového riadku) |
 | `statistiky.py` | priebežné súčty výsledkov |

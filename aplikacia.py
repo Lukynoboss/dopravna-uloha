@@ -32,8 +32,12 @@ from statistiky import HIST_HRANY, Statistiky
 
 KOREN = Path(__file__).resolve().parent
 METODY = list(metody.METODY)
-FARBY = {"SZR": "#2b7bd6", "IM": "#ee6a2c", "VAM": "#1fae7a"}
-POPIS_METOD = {"SZR": "severozápadný roh", "IM": "indexová metóda", "VAM": "Vogelova metóda"}
+FARBY = {"SZR": "#2b7bd6", "IM": "#ee6a2c", "VAM": "#1fae7a", "JVR": "#8e5bd0", "SVR": "#c0398f", "JZR": "#8a6d1e",
+         "MDD": "#0f8b8d", "PVM": "#d4a017"}
+POPIS_METOD = {"SZR": "severozápadný roh", "IM": "indexová metóda", "VAM": "Vogelova metóda",
+               "JVR": "juhovýchodný roh (nová)", "SVR": "severovýchodný roh (nová)",
+               "JZR": "juhozápadný roh (nová)", "MDD": "dvojitá diferencia (nová)",
+               "PVM": "predvídavá metóda (nová)"}
 
 if sys.platform == "win32":
     PISMO, PISMO_TUCNE, MONO = "Segoe UI", "Segoe UI Semibold", "Consolas"
@@ -670,7 +674,7 @@ class Aplikacia(tk.Tk):
         txt.tag_configure("opt", foreground="#178a5e", font=(MONO, 11, "bold"))
         txt.tag_configure("krok", foreground="#3d4a5c")
         txt.tag_configure("podnadpis", font=pismo(11, True), foreground="#1f4e79", spacing1=6)
-        for m in METODY:
+        for m in metody.VSETKY_METODY:
             txt.tag_configure(m, foreground=FARBY[m], font=pismo(12, True), spacing1=10, spacing3=4)
         return ram, txt
 
@@ -742,8 +746,8 @@ class Aplikacia(tk.Tk):
         t.insert("end", "  b_j " + "".join(f"{int(bj):>6}" for bj in u.b) + "\n")
 
         vysledky = []
-        for nazov_m, f in metody.METODY.items():
-            if vyber and nazov_m not in vyber:
+        for nazov_m, f in metody.VSETKY_METODY.items():
+            if (vyber and nazov_m not in vyber) or (not vyber and nazov_m not in metody.METODY):
                 continue
             t0 = time.perf_counter_ns()
             start = f(u)
@@ -826,12 +830,22 @@ class Aplikacia(tk.Tk):
         self.vl_sucty.pack(anchor="w", pady=(8, 0))
 
         k = self._karta(lavy, "Ako počítať", fill="x", pady=(0, 10))
-        for hodnota, text in (("VSETKY", "Všetky tri metódy a ich porovnanie"),
-                              ("SZR", "SZR – metóda severozápadného rohu"),
-                              ("IM", "IM – indexová metóda"),
-                              ("VAM", "VAM – Vogelova aproximačná metóda")):
-            ttk.Radiobutton(k, text=text, value=hodnota, variable=self.vl_metoda,
-                            style="Karta.TRadiobutton").pack(anchor="w", pady=1)
+        moznosti = {"Všetky tri metódy z prednášky a ich porovnanie": "VSETKY",
+                    "SZR – metóda severozápadného rohu": "SZR",
+                    "IM – indexová metóda": "IM",
+                    "VAM – Vogelova aproximačná metóda": "VAM",
+                    "JVR – juhovýchodný roh (nová)": "JVR",
+                    "SVR – severovýchodný roh (nová)": "SVR",
+                    "JZR – juhozápadný roh (nová)": "JZR",
+                    "MDD – dvojitá diferencia (nová)": "MDD",
+                    "PVM – predvídavá metóda (nová)": "PVM",
+                    "Všetky metódy (aj nové) a ich porovnanie": "VSETKO"}
+        nazvy = {v: k_ for k_, v in moznosti.items()}
+        vyber = ttk.Combobox(k, values=list(moznosti), state="readonly", width=48, font=pismo(10))
+        vyber.set(nazvy[self.vl_metoda.get()])
+        vyber.bind("<<ComboboxSelected>>", lambda _: self.vl_metoda.set(moznosti[vyber.get()]))
+        self.vl_metoda.trace_add("write", lambda *_: vyber.set(nazvy.get(self.vl_metoda.get(), vyber.get())))
+        vyber.pack(anchor="w", fill="x")
         ttk.Checkbutton(k, text="Celý postup krok za krokom (obsadzovanie polí, potenciály, Δ, obvod)",
                         variable=self.vl_postup, style="Karta.TCheckbutton").pack(anchor="w", pady=(6, 0))
 
@@ -977,7 +991,7 @@ class Aplikacia(tk.Tk):
             return
         metoda = self.vl_metoda.get()
         if not self.vl_postup.get():
-            vyber = None if metoda == "VSETKY" else [metoda]
+            vyber = None if metoda == "VSETKY" else list(metody.VSETKY_METODY) if metoda == "VSETKO" else [metoda]
             self._vypis_ulohu(self.vl_txt, C, a, b, "Vlastná úloha", vyber=vyber)
             return
         casti, vysledky = postup.cely_postup(C, a, b, metoda)

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.optimize import linprog
 
-from metody import METODY, je_optimalne, modi, vyvaz
+from metody import METODY, VSETKY_METODY, je_optimalne, modi, vyvaz
 
 C1 = [[3, 5, 4, 1], [2, 1, 3, 2], [4, 5, 1, 3]]
 
@@ -36,6 +36,27 @@ over("VAM", METODY["VAM"](u).z, 65)
 for meno, f in METODY.items():
     over(f"optimum z {meno} cez MODI", modi(u, f(u)).z, 65)
 
+print("Nová metóda JVR (juhovýchodný roh) na príklade 1")
+u = vyvaz(C1, [10, 20, 10], [10, 5, 5, 20])
+r = VSETKY_METODY["JVR"](u)
+over("JVR", r.z, 100)
+over("JVR plán", r.X.tolist(), [[10, 0, 0, 0], [0, 5, 5, 10], [0, 0, 0, 10]])
+over("optimum z JVR cez MODI", modi(u, r).z, 65)
+
+print("Nové krížové rohy SVR a JZR na príklade 1")
+for meno in ("SVR", "JZR"):
+    r = VSETKY_METODY[meno](u)
+    over(meno, r.z, 90)
+    over(f"{meno} plán", r.X.tolist(), [[0, 0, 0, 10], [0, 5, 5, 10], [10, 0, 0, 0]])
+    over(f"optimum z {meno} cez MODI", modi(u, r).z, 65)
+
+print("Nové metódy MDD (dvojitá diferencia) a PVM (predvídavá) na príklade 1")
+for meno in ("MDD", "PVM"):
+    r = VSETKY_METODY[meno](u)
+    over(meno, r.z, 65)
+    over(f"{meno} plán", r.X.tolist(), [[0, 0, 0, 10], [10, 5, 0, 5], [0, 0, 5, 5]])
+    over(f"{meno} je optimálne", je_optimalne(u.C, r.baza), True)
+
 print("Prebytok ponuky (str. 43–46): a = (15, 20, 10)")
 u = vyvaz(C1, [15, 20, 10], [10, 5, 5, 20])
 r = METODY["IM"](u)
@@ -63,7 +84,7 @@ for _ in range(2000):
     b = rng.integers(1, 6, size=n) * 5
     u = vyvaz(C, a, b)
     opt = optimum_scipy(u)
-    for meno, f in METODY.items():
+    for meno, f in VSETKY_METODY.items():
         s = f(u)
         assert len(s.baza) == sum(u.C.shape) - 1, meno
         assert (s.X.sum(1) == u.a).all() and (s.X.sum(0) == u.b).all(), meno

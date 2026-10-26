@@ -6,7 +6,12 @@ import numpy as np
 
 import metody
 
-NAZVY = {"SZR": "metóda severozápadného rohu", "IM": "indexová metóda", "VAM": "Vogelova aproximačná metóda"}
+NAZVY = {"SZR": "metóda severozápadného rohu", "IM": "indexová metóda", "VAM": "Vogelova aproximačná metóda",
+         "JVR": "metóda juhovýchodného rohu (nová, vymyslená)",
+         "SVR": "metóda severovýchodného rohu (nová, vymyslená)",
+         "JZR": "metóda juhozápadného rohu (nová, vymyslená)",
+         "MDD": "metóda dvojitej diferencie (nová, vymyslená)",
+         "PVM": "predvídavá metóda (nová, vymyslená)"}
 PRAVIDLA = {
     "SZR": "Vždy obsadíme ľavé horné (severozápadné) pole zostávajúcej tabuľky čo najväčším množstvom "
            "min(a_i, b_j). Na ceny sa neprihliada.",
@@ -15,6 +20,24 @@ PRAVIDLA = {
     "VAM": "V každom riadku a stĺpci zostávajúcej tabuľky spočítame diferenciu = rozdiel dvoch najnižších cien. "
            "V rade (riadku alebo stĺpci) s najväčšou diferenciou obsadíme pole s najnižšou cenou čo najväčším "
            "množstvom min(a_i, b_j). Pri zhode diferencií rozhoduje nižšia cena, potom riadok pred stĺpcom.",
+    "JVR": "Zrkadlový obraz SZR: vždy obsadíme pravé dolné (juhovýchodné) pole zostávajúcej tabuľky čo najväčším "
+           "množstvom min(a_i, b_j) a postupujeme doľava a hore. Na ceny sa neprihliada. Ak sa naraz vyčerpá "
+           "kapacita aj požiadavka, škrtáme riadok (rovnako ako pri SZR) a stĺpec dostane ďalšie pole s nulou.",
+    "SVR": "Krížový roh: vždy obsadíme pravé horné (severovýchodné) pole zostávajúcej tabuľky čo najväčším "
+           "množstvom min(a_i, b_j) a postupujeme doľava a dole – dodávateľov berieme od prvého, odberateľov od "
+           "posledného. Na ceny sa neprihliada. Pri súčasnom vyčerpaní škrtáme riadok.",
+    "JZR": "Krížový roh: vždy obsadíme ľavé dolné (juhozápadné) pole zostávajúcej tabuľky čo najväčším "
+           "množstvom min(a_i, b_j) a postupujeme doprava a hore – dodávateľov berieme od posledného, odberateľov "
+           "od prvého. Na ceny sa neprihliada. Pri súčasnom vyčerpaní škrtáme riadok.",
+    "MDD": "Ako pri VAM spočítame diferencie všetkých riadkov a stĺpcov (rozdiel dvoch najnižších cien). Každé pole "
+           "dostane skóre = diferencia jeho riadku, ak je v riadku najlacnejšie, + diferencia jeho stĺpca, ak je "
+           "v stĺpci najlacnejšie. Obsadíme pole s najväčším skóre čo najväčším množstvom min(a_i, b_j). Pri zhode "
+           "rozhoduje nižšia cena, potom vyšší riadok a ľavejší stĺpec. Rozdiel oproti VAM: pole, ktoré je "
+           "najlacnejšie v riadku aj v stĺpci zároveň, dostane obe diferencie.",
+    "PVM": "V každom kroku vyberieme 3 polia s najväčším skóre z metódy dvojitej diferencie (kandidáti). Pre "
+           "každého kandidáta skúsime: obsadíme ho a zvyšok úlohy dopočítame metódou VAM. Naozaj obsadíme toho "
+           "kandidáta, pri ktorom vyšla celková cena najnižšia. Metóda sa teda „pozrie dopredu“, čo by jej voľba "
+           "spôsobila. Ručne je prácna, počítač ju zvládne rýchlo.",
 }
 SIRKA = 7
 
@@ -81,6 +104,34 @@ def vychodiskove(u: metody.Uloha, nazov: str, v: Vypis) -> metody.Riesenie:
         if nazov == "SZR":
             i, j = metody._szr_pole(C, riadky, stlpce)
             dovod = f"Severozápadný roh zostávajúcej tabuľky je pole {v.pole(i, j)} (cena {int(C[i, j])})."
+        elif nazov == "JVR":
+            i, j = metody._jvr_pole(C, riadky, stlpce)
+            dovod = f"Juhovýchodný (pravý dolný) roh zostávajúcej tabuľky je pole {v.pole(i, j)} (cena {int(C[i, j])})."
+        elif nazov == "SVR":
+            i, j = metody._svr_pole(C, riadky, stlpce)
+            dovod = f"Severovýchodný (pravý horný) roh zostávajúcej tabuľky je pole {v.pole(i, j)} (cena {int(C[i, j])})."
+        elif nazov == "JZR":
+            i, j = metody._jzr_pole(C, riadky, stlpce)
+            dovod = f"Juhozápadný (ľavý dolný) roh zostávajúcej tabuľky je pole {v.pole(i, j)} (cena {int(C[i, j])})."
+        elif nazov == "MDD":
+            ri, sj, S, dr, ds, skore, poradie = metody._mdd_skore(C, riadky, stlpce)
+            v.t("Diferencie riadkov:   " + ",  ".join(f"{v.r[ri[k]]}: {int(dr[k])}" for k in range(len(ri))) + "\n")
+            v.t("Diferencie stĺpcov:   " + ",  ".join(f"{v.s[sj[k]]}: {int(ds[k])}" for k in range(len(sj))) + "\n")
+            naj = [int(k) for k in poradie[:4]]
+            v.t("Najvyššie skóre polí: " + ",  ".join(
+                f"{v.pole(int(ri[k // len(sj)]), int(sj[k % len(sj)]))} = {int(skore.ravel()[k])}" for k in naj) + "\n")
+            i, j = metody._mdd_pole(C, riadky, stlpce)
+            dovod = (f"Najväčšie skóre {int(skore.ravel()[naj[0]])} má pole {v.pole(i, j)} (cena {int(C[i, j])})"
+                     + (" – pri zhode rozhodla nižšia cena / poradie." if len(naj) > 1
+                        and skore.ravel()[naj[1]] == skore.ravel()[naj[0]] else "."))
+        elif nazov == "PVM":
+            kandidati = metody.pvm_kandidati(C, riadky, stlpce, zost_a, zost_b)
+            for poc, (ki, kj, sk, kq, teraz, zvysok) in enumerate(kandidati, 1):
+                v.t(f"Kandidát {poc}: {v.pole(ki, kj)} (skóre {sk}) → x = {kq}, teraz {kq}·{int(C[ki, kj])} = {teraz}, "
+                    f"zvyšok cez VAM {zvysok}, spolu {teraz + zvysok}\n")
+            i, j = metody._pvm_pole(C, riadky, stlpce, zost_a, zost_b)
+            spolu = min(k[4] + k[5] for k in kandidati)
+            dovod = f"Najnižšiu celkovú cenu {spolu} sľubuje pole {v.pole(i, j)} (cena {int(C[i, j])})."
         elif nazov == "IM":
             i, j = metody._im_pole(C, riadky, stlpce)
             dovod = f"Najnižšia cena v zostávajúcej tabuľke je {int(C[i, j])} v poli {v.pole(i, j)}."
@@ -253,7 +304,12 @@ def cely_postup(C, a, b, metoda: str, nazov: str = "Vlastná úloha") -> tuple[l
     v.t("\nZadanie – ceny c_ij, vpravo kapacity a_i, dole požiadavky b_j\n", "sivy")
     v.tabulka([[str(int(c)) for c in r] for r in u.C], [str(int(x)) for x in u.a], "a_i",
               [str(int(x)) for x in u.b], "b_j")
-    metody_ = list(metody.METODY) if metoda == "VSETKY" else [metoda]
+    if metoda == "VSETKY":
+        metody_ = list(metody.METODY)
+    elif metoda == "VSETKO":
+        metody_ = list(metody.VSETKY_METODY)
+    else:
+        metody_ = [metoda]
     vysledky = {}
     for nazov_m in metody_:
         start = vychodiskove(u, nazov_m, v)

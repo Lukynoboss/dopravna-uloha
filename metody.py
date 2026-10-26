@@ -41,14 +41,17 @@ def vyvaz(C, a, b, penale_odb=None, penale_dod=None) -> Uloha:
     return Uloha(C, a, b)
 
 
-def _obsadzuj(u: Uloha, vyber_pole) -> Riesenie:
+def _obsadzuj(u: Uloha, vyber_pole, so_zostatkami: bool = False) -> Riesenie:
     m, n = u.C.shape
     zost_a, zost_b = u.a.copy(), u.b.copy()
     riadky, stlpce = np.ones(m, bool), np.ones(n, bool)
     X = np.zeros((m, n), dtype=np.int64)
     baza = []
     while True:
-        i, j = vyber_pole(u.C, riadky, stlpce)
+        if so_zostatkami:
+            i, j = vyber_pole(u.C, riadky, stlpce, zost_a, zost_b)
+        else:
+            i, j = vyber_pole(u.C, riadky, stlpce)
         q = min(zost_a[i], zost_b[j])
         X[i, j] = q
         zost_a[i] -= q
@@ -105,7 +108,105 @@ def vam(u: Uloha) -> Riesenie:
     return _obsadzuj(u, _vam_pole)
 
 
+def _jvr_pole(C, riadky, stlpce):
+    return len(riadky) - 1 - int(np.argmax(riadky[::-1])), len(stlpce) - 1 - int(np.argmax(stlpce[::-1]))
+
+
+def juhovychodny(u: Uloha) -> Riesenie:
+    return _obsadzuj(u, _jvr_pole)
+
+
+def _svr_pole(C, riadky, stlpce):
+    return int(np.argmax(riadky)), len(stlpce) - 1 - int(np.argmax(stlpce[::-1]))
+
+
+def severovychodny(u: Uloha) -> Riesenie:
+    return _obsadzuj(u, _svr_pole)
+
+
+def _jzr_pole(C, riadky, stlpce):
+    return len(riadky) - 1 - int(np.argmax(riadky[::-1])), int(np.argmax(stlpce))
+
+
+def juhozapadny(u: Uloha) -> Riesenie:
+    return _obsadzuj(u, _jzr_pole)
+
+
+def _mdd_skore(C, riadky, stlpce):
+    ri, sj = np.flatnonzero(riadky), np.flatnonzero(stlpce)
+    S = C[np.ix_(ri, sj)]
+    dr, rmn = _diferencie(S)
+    ds, smn = _diferencie(S.T)
+    skore = np.where(S == rmn[:, None], dr[:, None], 0) + np.where(S == smn[None, :], ds[None, :], 0)
+    poradie = np.lexsort((S.ravel(), -skore.ravel()))
+    return ri, sj, S, dr, ds, skore, poradie
+
+
+def _mdd_pole(C, riadky, stlpce):
+    ri, sj, _, _, _, _, poradie = _mdd_skore(C, riadky, stlpce)
+    k = int(poradie[0])
+    return int(ri[k // len(sj)]), int(sj[k % len(sj)])
+
+
+def dvojita_diferencia(u: Uloha) -> Riesenie:
+    return _obsadzuj(u, _mdd_pole)
+
+
+def _skrtni(zost_a, zost_b, riadky, stlpce, i, j) -> bool:
+    if riadky.sum() == 1 and stlpce.sum() == 1:
+        return True
+    if zost_a[i] == 0 and riadky.sum() > 1:
+        riadky[i] = False
+    else:
+        stlpce[j] = False
+    return False
+
+
+def _dokonci_vam(C, zost_a, zost_b, riadky, stlpce) -> int:
+    zost_a, zost_b, riadky, stlpce = zost_a.copy(), zost_b.copy(), riadky.copy(), stlpce.copy()
+    z = 0
+    while True:
+        i, j = _vam_pole(C, riadky, stlpce)
+        q = min(zost_a[i], zost_b[j])
+        z += int(C[i, j]) * int(q)
+        zost_a[i] -= q
+        zost_b[j] -= q
+        if _skrtni(zost_a, zost_b, riadky, stlpce, i, j):
+            return z
+
+
+PVM_KANDIDATOV = 3
+
+
+def pvm_kandidati(C, riadky, stlpce, zost_a, zost_b):
+    ri, sj, _, _, _, skore, poradie = _mdd_skore(C, riadky, stlpce)
+    vysledky = []
+    for k in poradie[:PVM_KANDIDATOV]:
+        i, j = int(ri[k // len(sj)]), int(sj[k % len(sj)])
+        za, zb, r, s = zost_a.copy(), zost_b.copy(), riadky.copy(), stlpce.copy()
+        q = int(min(za[i], zb[j]))
+        teraz = int(C[i, j]) * q
+        za[i] -= q
+        zb[j] -= q
+        zvysok = 0 if _skrtni(za, zb, r, s, i, j) else _dokonci_vam(C, za, zb, r, s)
+        vysledky.append((i, j, int(skore.ravel()[k]), q, teraz, zvysok))
+    return vysledky
+
+
+def _pvm_pole(C, riadky, stlpce, zost_a, zost_b):
+    kandidati = pvm_kandidati(C, riadky, stlpce, zost_a, zost_b)
+    i, j, *_ = min(kandidati, key=lambda k: k[4] + k[5])
+    return i, j
+
+
+def predvidava(u: Uloha) -> Riesenie:
+    return _obsadzuj(u, _pvm_pole, so_zostatkami=True)
+
+
 METODY = {"SZR": szr, "IM": indexova, "VAM": vam}
+NOVE_METODY = {"JVR": juhovychodny, "SVR": severovychodny, "JZR": juhozapadny,
+               "MDD": dvojita_diferencia, "PVM": predvidava}
+VSETKY_METODY = {**METODY, **NOVE_METODY}
 
 
 def potencialy(C, baza):
