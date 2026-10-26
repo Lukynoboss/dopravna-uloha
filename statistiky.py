@@ -15,28 +15,29 @@ I_ID, I_M, I_N, I_TYP, I_CENA, I_FIKT, I_MET, I_DEG, I_Z, I_ZOPT, I_ODCH, I_OPT,
 
 
 class Statistiky:
-    def __init__(self):
+    def __init__(self, mena: list[str] | None = None):
+        self.metody = list(mena or METODY)
         self.hotovo = 0
         self.chyby = 0
-        self.stat = {m: [0, 0, 0.0, 0, 0, 0, 0, 0] for m in METODY}
-        self.najlepsia = {m: 0 for m in METODY}
+        self.stat = {m: [0, 0, 0.0, 0, 0, 0, 0, 0] for m in self.metody}
+        self.najlepsia = {m: 0 for m in self.metody}
         self.velkost: dict[int, dict[str, list]] = {}
         self.typ: dict[str, dict[str, list]] = {}
-        self.hist = {m: np.zeros(len(HIST_HRANY) - 1) for m in METODY}
+        self.hist = {m: np.zeros(len(HIST_HRANY) - 1) for m in self.metody}
         self.historia: list[tuple[int, list[float]]] = []
         self.vzorka: list[list] = []
 
     def pridaj(self, riadky: list, chyby: list):
         self.chyby += len(chyby)
-        if len(self.vzorka) < VZORKA_ULOH * len(METODY):
-            self.vzorka.extend(riadky[:VZORKA_ULOH * len(METODY) - len(self.vzorka)])
-        odch_batch = {m: [] for m in METODY}
-        for i in range(0, len(riadky), len(METODY)):
-            trojica = riadky[i:i + len(METODY)]
+        if len(self.vzorka) < VZORKA_ULOH * len(self.metody):
+            self.vzorka.extend(riadky[:VZORKA_ULOH * len(self.metody) - len(self.vzorka)])
+        odch_batch = {m: [] for m in self.metody}
+        for i in range(0, len(riadky), len(self.metody)):
+            trojica = riadky[i:i + len(self.metody)]
             najmensie = min(r[I_Z] for r in trojica)
             vel = max(trojica[0][I_M], trojica[0][I_N])
-            skupina = self.velkost.setdefault(vel, {m: [0, 0.0, 0, 0] for m in METODY})
-            podla_typu = self.typ.setdefault(trojica[0][I_TYP], {m: [0, 0.0, 0, 0] for m in METODY})
+            skupina = self.velkost.setdefault(vel, {m: [0, 0.0, 0, 0] for m in self.metody})
+            podla_typu = self.typ.setdefault(trojica[0][I_TYP], {m: [0, 0.0, 0, 0] for m in self.metody})
             for r in trojica:
                 m = r[I_MET]
                 st = self.stat[m]
@@ -63,19 +64,30 @@ class Statistiky:
 
     def zapis_historiu(self):
         if self.hotovo and (not self.historia or self.historia[-1][0] != self.hotovo):
-            self.historia.append((self.hotovo, [self.stat[m][2] / max(1, self.stat[m][0]) for m in METODY]))
+            self.historia.append((self.hotovo, [self.stat[m][2] / max(1, self.stat[m][0]) for m in self.metody]))
 
     @classmethod
     def z_csv(cls, cesta: Path, blok: int = 3000) -> "Statistiky":
-        s = cls()
         typy = (int, int, int, str, int, str, str, int, int, int, float, int, int, int, int)
+        mena = []
+        with open(cesta, encoding="utf-8", newline="") as f:
+            citac = csv.reader(f)
+            next(citac)
+            prve_id = None
+            for riadok in citac:
+                if prve_id is None:
+                    prve_id = riadok[I_ID]
+                if riadok[I_ID] != prve_id:
+                    break
+                mena.append(riadok[I_MET])
+        s = cls(mena)
         davka = []
         with open(cesta, encoding="utf-8", newline="") as f:
             citac = csv.reader(f)
             next(citac)
             for riadok in citac:
                 davka.append([t(x) for t, x in zip(typy, riadok)])
-                if len(davka) >= blok and len(davka) % len(METODY) == 0:
+                if len(davka) >= blok and len(davka) % len(s.metody) == 0:
                     s.pridaj(davka, [])
                     davka = []
         if davka:

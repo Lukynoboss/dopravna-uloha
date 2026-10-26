@@ -25,11 +25,12 @@ def _degeneracia(r: metody.Riesenie) -> int:
     return sum(1 for p in r.baza if r.X[p] == 0)
 
 
-def spracuj_ulohu(seed: int, id_: int, p: dict | None = None):
+def spracuj_ulohu(seed: int, id_: int, p: dict | None = None, mena: list[str] | None = None):
     nu = generator.generuj(seed, id_, p or generator.PARAMETRE)
     u = metody.vyvaz(nu.C, nu.a, nu.b)
     zaznamy = []
-    for nazov, f in metody.METODY.items():
+    for nazov in mena or metody.METODY:
+        f = metody.VSETKY_METODY[nazov]
         t0 = time.perf_counter_ns()
         start = f(u)
         t1 = time.perf_counter_ns()
@@ -53,11 +54,11 @@ def spracuj_ulohu(seed: int, id_: int, p: dict | None = None):
     return riadky, chyby
 
 
-def spracuj_blok(seed: int, ids: list[int], p: dict | None = None):
+def spracuj_blok(seed: int, ids: list[int], p: dict | None = None, mena: list[str] | None = None):
     riadky, chyby = [], []
     for id_ in ids:
         try:
-            r, ch = spracuj_ulohu(seed, id_, p)
+            r, ch = spracuj_ulohu(seed, id_, p, mena)
             riadky.extend(r)
             chyby.extend(ch)
         except Exception as e:
@@ -66,12 +67,12 @@ def spracuj_blok(seed: int, ids: list[int], p: dict | None = None):
 
 
 class ZivyPriebeh:
-    def __init__(self, pocet: int, procesy: int, zapnuty: bool = True):
+    def __init__(self, pocet: int, procesy: int, zapnuty: bool = True, mena: list[str] | None = None):
         self.pocet, self.procesy, self.zapnuty = pocet, procesy, zapnuty
         self.hotovo = 0
         self.chyby = 0
-        self.stat = {nazov: [0, 0, 0.0, 0, 0] for nazov in metody.METODY}
-        self.prvy_najlepsi = {nazov: 0 for nazov in metody.METODY}
+        self.stat = {nazov: [0, 0, 0.0, 0, 0] for nazov in mena or metody.METODY}
+        self.prvy_najlepsi = {nazov: 0 for nazov in mena or metody.METODY}
         self.t0 = time.perf_counter()
         self.posledny_vypis = 0.0
         self.riadkov_vypisu = 0
@@ -137,7 +138,10 @@ def main(argv: list[str] | None = None):
     ap.add_argument("--procesy", type=int, default=os.cpu_count() or 1)
     ap.add_argument("--blok", type=int, default=100, help="počet úloh v jednom bloku")
     ap.add_argument("--ticho", action="store_true", help="bez priebežného výpisu v termináli")
+    ap.add_argument("--metody", choices=list(metody.SKUPINY), default="prednaska",
+                    help="prednaska = SZR, IM, VAM; nove = JVR, SVR, JZR, MDD, PVM; vsetky = všetkých osem")
     arg = ap.parse_args(argv)
+    mena = metody.SKUPINY[arg.metody]
 
     PRIECINOK.mkdir(exist_ok=True)
     cesta_csv = PRIECINOK / f"beh_{arg.nazov}.csv"
@@ -146,13 +150,13 @@ def main(argv: list[str] | None = None):
     bloky = [list(range(z, min(z + arg.blok, arg.pocet))) for z in range(0, arg.pocet, arg.blok)]
     chyby = []
     pocet_riadkov = 0
-    zivo = ZivyPriebeh(arg.pocet, arg.procesy, zapnuty=not arg.ticho and sys.stdout.isatty())
+    zivo = ZivyPriebeh(arg.pocet, arg.procesy, zapnuty=not arg.ticho and sys.stdout.isatty(), mena=mena)
     t0 = time.perf_counter()
     with open(cesta_csv, "w", newline="", encoding="utf-8") as fcsv:
         w = csv.writer(fcsv)
         w.writerow(STLPCE)
         if arg.procesy <= 1:
-            vysledky = (spracuj_blok(arg.seed, b) for b in bloky)
+            vysledky = (spracuj_blok(arg.seed, b, None, mena) for b in bloky)
             for riadky, ch in vysledky:
                 w.writerows(riadky)
                 pocet_riadkov += len(riadky)
@@ -160,7 +164,8 @@ def main(argv: list[str] | None = None):
                 zivo.pridaj(riadky, ch)
         else:
             with ProcessPoolExecutor(max_workers=arg.procesy) as ex:
-                for riadky, ch in ex.map(spracuj_blok, [arg.seed] * len(bloky), bloky):
+                for riadky, ch in ex.map(spracuj_blok, [arg.seed] * len(bloky), bloky,
+                                         [None] * len(bloky), [mena] * len(bloky)):
                     w.writerows(riadky)
                     pocet_riadkov += len(riadky)
                     chyby.extend(ch)
@@ -171,6 +176,7 @@ def main(argv: list[str] | None = None):
         "nazov": arg.nazov,
         "seed": arg.seed,
         "pocet_uloh": arg.pocet,
+        "metody": mena,
         "procesy": arg.procesy,
         "blok": arg.blok,
         "parametre_generatora": generator.PARAMETRE,
@@ -182,7 +188,7 @@ def main(argv: list[str] | None = None):
             "úlohe má väčšia strana navyše 5–30 % T – realistický prebytok, fiktívny účastník "
             "s nulovými cenami (metody.vyvaz) nie je zanedbateľný ani dominantný."
         ),
-        "z_opt": "z MODI (minimum z troch štartov; nezhoda = chyba)",
+        "z_opt": "z MODI (minimum zo štartov všetkých metód; nezhoda = chyba)",
         "degeneracia": "počet bázických polí s nulovou prepravou vo východiskovom riešení",
         "casy": "cas_metody_ns a cas_modi_ns merané perf_counter_ns vo vnútri procesu",
         "trvanie_behu_s": round(trvanie, 3),

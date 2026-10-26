@@ -98,8 +98,15 @@ def nacitaj_cele(text: str, nazov: str, od: int | None = None, do: int | None = 
     return x
 
 
+SKUPINY_NAZVY = {"Z prednášky: SZR, IM, VAM": "prednaska",
+                 "Len nové: JVR, SVR, JZR, MDD, PVM": "nove",
+                 "Všetky metódy (8)": "vsetky"}
+CAS_METODY = {"SZR": 0.0062, "IM": 0.0029, "VAM": 0.0030, "JVR": 0.0062, "SVR": 0.0062, "JZR": 0.0062,
+              "MDD": 0.0035, "PVM": 0.11}
+
+
 def beh_na_pozadi(pocet: int, procesy: int, seed: int, p: dict, blok: int,
-                  fronta: queue.Queue, stop: threading.Event):
+                  fronta: queue.Queue, stop: threading.Event, mena: list[str] | None = None):
     try:
         with ProcessPoolExecutor(max_workers=procesy) as ex:
             dalsi = 0
@@ -108,7 +115,7 @@ def beh_na_pozadi(pocet: int, procesy: int, seed: int, p: dict, blok: int,
                 while dalsi < pocet and len(bezi) < procesy * 3:
                     ids = list(range(dalsi, min(dalsi + blok, pocet)))
                     dalsi += len(ids)
-                    bezi.add(ex.submit(simulacia.spracuj_blok, seed, ids, p))
+                    bezi.add(ex.submit(simulacia.spracuj_blok, seed, ids, p, mena))
                 hotove, bezi = wait(bezi, timeout=0.3, return_when=FIRST_COMPLETED)
                 for f in hotove:
                     fronta.put(("data", f.result()))
@@ -193,7 +200,7 @@ class Aplikacia(tk.Tk):
         st.configure("Maly.TButton", padding=(6, 2), font=pismo(9))
         st.configure("Horizontal.TProgressbar", troughcolor="#e6ebf1", background=AKCENT,
                      bordercolor="#e6ebf1", lightcolor=AKCENT, darkcolor=AKCENT, thickness=16)
-        st.configure("Treeview", rowheight=30, font=pismo(10), background=KARTA,
+        st.configure("Treeview", rowheight=25, font=pismo(10), background=KARTA,
                      fieldbackground=KARTA, bordercolor=OKRAJ)
         st.configure("Treeview.Heading", font=pismo(9, True), background="#eef2f7",
                      foreground=SIVA, relief="flat")
@@ -201,7 +208,7 @@ class Aplikacia(tk.Tk):
     def _karta(self, rodic, nadpis: str | None = None, **pack):
         ram = tk.Frame(rodic, bg=KARTA, highlightbackground=OKRAJ, highlightthickness=1)
         ram.pack(**pack)
-        vnutro = ttk.Frame(ram, style="Karta.TFrame", padding=(14, 8))
+        vnutro = ttk.Frame(ram, style="Karta.TFrame", padding=(14, 6))
         vnutro.pack(fill="both", expand=True)
         if nadpis:
             ttk.Label(vnutro, text=nadpis, style="Nadpis.TLabel").pack(anchor="w", pady=(0, 4))
@@ -273,6 +280,14 @@ class Aplikacia(tk.Tk):
         ttk.Button(seed_ram, text="náhodný", style="Maly.TButton",
                    command=lambda: self.v["seed"].set(str(random.randint(1, 99_999_999)))).pack(side="left", padx=4)
         self._riadok(k, "Seed", seed_ram)
+        self.v["skupina"] = tk.StringVar(value="prednaska")
+        vyber = ttk.Combobox(k, values=list(SKUPINY_NAZVY), state="readonly", width=31, font=pismo(10))
+        vyber.set(next(iter(SKUPINY_NAZVY)))
+        vyber.bind("<<ComboboxSelected>>", lambda _: self.v["skupina"].set(SKUPINY_NAZVY[vyber.get()]))
+        nazvy_skupin = {v: k_ for k_, v in SKUPINY_NAZVY.items()}
+        self.v["skupina"].trace_add("write", lambda *_: vyber.set(nazvy_skupin[self.v["skupina"].get()]))
+        self._riadok(k, "Metódy", vyber)
+        self.v["skupina"].trace_add("write", lambda *_: self._odhad())
 
         k = self._karta(lavy, "Náhodné úlohy", fill="x", pady=(0, 8))
         self._riadok(k, "Dodávatelia m", self._od_do(k, "m_od", "m_do"))
@@ -330,16 +345,13 @@ class Aplikacia(tk.Tk):
         for s, n, sirka in zip(stlpce, nazvy, (190, 120, 210, 160, 130, 120)):
             self.tabulka.heading(s, text=n, anchor="w" if s == "metoda" else "e")
             self.tabulka.column(s, width=sirka, anchor="w" if s == "metoda" else "e")
-        for m in METODY:
-            self.tabulka.insert("", "end", iid=m, values=(f"{m} – {POPIS_METOD[m]}", "–", "–", "–", "–", "–"),
-                                tags=(m,))
-            self.tabulka.tag_configure(m, foreground=FARBY[m])
+        self._tabulka_riadky(METODY)
         self.tabulka.pack(fill="x")
 
         k = self._karta(pravy, None, fill="both", expand=True)
         self.fig = Figure(figsize=(10, 5.4), dpi=100, facecolor=KARTA)
         self.ax = [self.fig.add_subplot(2, 2, i + 1) for i in range(4)]
-        self.fig.subplots_adjust(left=0.07, right=0.985, top=0.93, bottom=0.1, hspace=0.5, wspace=0.18)
+        self.fig.subplots_adjust(left=0.07, right=0.985, top=0.93, bottom=0.11, hspace=0.68, wspace=0.18)
         self.canvas = FigureCanvasTkAgg(self.fig, master=k)
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
         self._kresli()
@@ -347,7 +359,7 @@ class Aplikacia(tk.Tk):
 
     def _riadok(self, rodic, text: str, widget):
         ram = ttk.Frame(rodic, style="Karta.TFrame")
-        ram.pack(fill="x", pady=2)
+        ram.pack(fill="x", pady=1)
         ttk.Label(ram, text=text, style="Karta.TLabel").pack(side="left")
         widget.pack(in_=ram, side="right")
         widget.lift(ram)
@@ -367,6 +379,14 @@ class Aplikacia(tk.Tk):
         except ValueError:
             self.lbl_dopyt.config(text="")
 
+    def _tabulka_riadky(self, mena):
+        self.tabulka.delete(*self.tabulka.get_children())
+        self.tabulka.configure(height=len(mena))
+        for m in mena:
+            self.tabulka.insert("", "end", iid=m, values=(f"{m} – {POPIS_METOD[m]}", "–", "–", "–", "–", "–"),
+                                tags=(m,))
+            self.tabulka.tag_configure(m, foreground=FARBY[m])
+
     def _odhad(self):
         try:
             n = nacitaj_cele(self.v["pocet"].get(), "počet", 1)
@@ -374,8 +394,9 @@ class Aplikacia(tk.Tk):
         except ValueError:
             self.lbl_odhad.config(text="")
             return
-        sekundy = n * 0.0128 / min(pr, os.cpu_count() or pr)
-        mb = n * 3 * 80 / 1e6
+        mena = metody.SKUPINY[self.v["skupina"].get()] if "skupina" in self.v else list(METODY)
+        sekundy = n * sum(CAS_METODY.get(m, 0.005) for m in mena) / min(pr, os.cpu_count() or pr)
+        mb = n * len(mena) * 80 / 1e6
         self.lbl_odhad.config(text=f"odhad: ~{cas_text(sekundy)}  ·  CSV by malo ~{cislo(mb, 0 if mb >= 10 else 1)} MB")
 
     def _nastavenia(self):
@@ -397,11 +418,11 @@ class Aplikacia(tk.Tk):
         ceny = {f"1-{ca}": pa, f"1-{cb}": 1 - pa} if ca != cb else {f"1-{ca}": 1.0}
         p = dict(generator.PARAMETRE, m_rozsah=[m_od, m_do], n_rozsah=[n_od, n_do], ceny=ceny,
                  typ={"vyrovnana": pv, "prebytok_ponuky": pp, "prebytok_dopytu": round(1 - pv - pp, 10)})
-        return pocet, procesy, seed, p
+        return pocet, procesy, seed, p, metody.SKUPINY[v["skupina"].get()]
 
     def _spusti(self):
         try:
-            pocet, procesy, seed, p = self._nastavenia()
+            pocet, procesy, seed, p, mena = self._nastavenia()
         except ValueError as e:
             messagebox.showwarning("Skontroluj nastavenia", str(e), parent=self)
             return
@@ -421,21 +442,23 @@ class Aplikacia(tk.Tk):
             self.nazov = nazov
             self.cesta_csv = cesta
 
-        self.parametre = {"pocet": pocet, "procesy": procesy, "seed": seed, "p": p}
-        self.stat = Statistiky()
+        self.parametre = {"pocet": pocet, "procesy": procesy, "seed": seed, "p": p, "metody": mena}
+        self.stat = Statistiky(mena)
+        self._tabulka_riadky(mena)
         self.pocet = pocet
         self.t0 = time.perf_counter()
         self.bezi = True
         self.stop.clear()
         blok = max(5, min(200, pocet // (procesy * 40) or 5))
         self.vlakno = threading.Thread(target=beh_na_pozadi, daemon=True,
-                                       args=(pocet, procesy, seed, p, blok, self.fronta, self.stop))
+                                       args=(pocet, procesy, seed, p, blok, self.fronta, self.stop, mena))
         self.vlakno.start()
         self.btn_start.config(state="disabled")
         self.btn_stop.config(state="normal")
         self.btn_vyhodnot.config(state="disabled")
         self.btn_excel.config(state="disabled")
-        self.lbl_stav.config(text=f"Počítam {cislo(pocet)} úloh na {procesy} procesoch…", foreground=TEXT)
+        self.lbl_stav.config(text=f"Počítam {cislo(pocet)} úloh metódami {', '.join(mena)} na {procesy} "
+                                  "procesoch…", foreground=TEXT)
         self._aktualizuj()
         self._kresli()
 
@@ -456,7 +479,7 @@ class Aplikacia(tk.Tk):
             info = {
                 "nazov": self.nazov, "zdroj": "aplikacia.py", "seed": p["seed"],
                 "pocet_uloh_zadany": p["pocet"], "pocet_uloh_vypocitany": self.stat.hotovo,
-                "zastavene_pouzivatelom": zastavene, "procesy": p["procesy"],
+                "zastavene_pouzivatelom": zastavene, "procesy": p["procesy"], "metody": p["metody"],
                 "parametre_generatora": p["p"],
                 "generovanie": "np.random.default_rng([seed, id]); úloha je určená seedom a id",
                 "poradie_riadkov": "podľa dokončenia blokov (nie podľa id)",
@@ -468,7 +491,7 @@ class Aplikacia(tk.Tk):
             with open(self.cesta_csv.with_suffix(".json"), "w", encoding="utf-8") as f:
                 json.dump(info, f, ensure_ascii=False, indent=2)
             self.posledny_beh = self.nazov
-            self.btn_vyhodnot.config(state="normal")
+            self.btn_vyhodnot.config(state="normal" if p["metody"] == list(metody.METODY) else "disabled")
         self.btn_start.config(state="normal")
         self.btn_stop.config(state="disabled")
         self.btn_excel.config(state="normal" if self.stat.hotovo else "disabled")
@@ -525,7 +548,7 @@ class Aplikacia(tk.Tk):
         self.dlazdice["zostava"].config(text=cas_text(zostava) if self.bezi and rychlost > 0 else "–")
         self.dlazdice["chyby"].config(text=str(s.chyby) if pocet else "–",
                                       foreground=CERVENA if s.chyby else TEXT)
-        for m in METODY:
+        for m in s.metody:
             k, opt, odch, kroky, cas = s.stat[m][:5]
             if k == 0:
                 hodnoty = ("–",) * 5
@@ -562,11 +585,12 @@ class Aplikacia(tk.Tk):
         a1.set_xlabel("počet vypočítaných úloh", fontsize=8, color=SIVA)
         if s.historia:
             x = [h[0] for h in s.historia]
-            for i, m in enumerate(METODY):
+            for i, m in enumerate(s.metody):
                 a1.plot(x, [h[1][i] for h in s.historia], color=FARBY[m], lw=2, label=m)
             log_os(a1)
             a1.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: cislo(x)))
-            a1.legend(fontsize=8, frameon=False, loc="upper right", ncol=3)
+            a1.legend(fontsize=7 if len(s.metody) > 3 else 8, frameon=False, loc="upper right",
+                      ncol=4 if len(s.metody) > 3 else 3)
 
         vel = sorted(s.velkost)
         nadpis(a2, "Priemerná odchýlka podľa veľkosti úlohy (%)")
@@ -574,7 +598,7 @@ class Aplikacia(tk.Tk):
         nadpis(a3, "Priemerný počet krokov MODI podľa veľkosti úlohy")
         a3.set_xlabel("veľkosť úlohy max(m, n)", fontsize=8, color=SIVA)
         if vel:
-            for m in METODY:
+            for m in s.metody:
                 pocty = np.array([s.velkost[v][m][0] for v in vel], dtype=float)
                 ok = pocty > 0
                 x = np.array(vel)[ok]
@@ -585,20 +609,22 @@ class Aplikacia(tk.Tk):
             log_os(a2)
             for a in (a2, a3):
                 a.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
-            a2.legend(fontsize=8, frameon=False, ncol=3)
-            a3.legend(fontsize=8, frameon=False, ncol=3)
+            if len(s.metody) <= 3:
+                a2.legend(fontsize=8, frameon=False, ncol=3)
+                a3.legend(fontsize=8, frameon=False, ncol=3)
 
         nadpis(a4, "Rozdelenie odchýlky od optima (podiel úloh)")
         a4.set_xlabel("odchýlka od optima (%)  ·  posledný stĺpec = 500 % a viac", fontsize=8, color=SIVA)
         if s.hotovo:
             stredy = (HIST_HRANY[:-1] + HIST_HRANY[1:]) / 2
-            for m in METODY:
+            for m in s.metody:
                 h = s.hist[m] / max(1, s.hist[m].sum()) * 100
                 a4.fill_between(stredy, h, step="mid", color=FARBY[m], alpha=0.18)
                 a4.step(stredy, h, where="mid", color=FARBY[m], lw=1.6, label=m)
             a4.set_xlim(0, 500)
             a4.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda y, _: f"{y:.0f} %"))
-            a4.legend(fontsize=8, frameon=False, ncol=3)
+            if len(s.metody) <= 3:
+                a4.legend(fontsize=8, frameon=False, ncol=3)
 
         if not s.hotovo:
             for a in self.ax:
@@ -839,6 +865,7 @@ class Aplikacia(tk.Tk):
                     "JZR – juhozápadný roh (nová)": "JZR",
                     "MDD – dvojitá diferencia (nová)": "MDD",
                     "PVM – predvídavá metóda (nová)": "PVM",
+                    "Len nové metódy (JVR, SVR, JZR, MDD, PVM) a ich porovnanie": "NOVE",
                     "Všetky metódy (aj nové) a ich porovnanie": "VSETKO"}
         nazvy = {v: k_ for k_, v in moznosti.items()}
         vyber = ttk.Combobox(k, values=list(moznosti), state="readonly", width=48, font=pismo(10))
@@ -991,7 +1018,8 @@ class Aplikacia(tk.Tk):
             return
         metoda = self.vl_metoda.get()
         if not self.vl_postup.get():
-            vyber = None if metoda == "VSETKY" else list(metody.VSETKY_METODY) if metoda == "VSETKO" else [metoda]
+            vyber = {"VSETKY": None, "VSETKO": list(metody.VSETKY_METODY),
+                     "NOVE": list(metody.NOVE_METODY)}.get(metoda, [metoda])
             self._vypis_ulohu(self.vl_txt, C, a, b, "Vlastná úloha", vyber=vyber)
             return
         casti, vysledky = postup.cely_postup(C, a, b, metoda)

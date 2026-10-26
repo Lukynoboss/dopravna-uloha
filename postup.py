@@ -308,6 +308,8 @@ def cely_postup(C, a, b, metoda: str, nazov: str = "Vlastná úloha") -> tuple[l
         metody_ = list(metody.METODY)
     elif metoda == "VSETKO":
         metody_ = list(metody.VSETKY_METODY)
+    elif metoda == "NOVE":
+        metody_ = list(metody.NOVE_METODY)
     else:
         metody_ = [metoda]
     vysledky = {}

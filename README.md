@@ -41,11 +41,13 @@ Ručne (ktorýkoľvek systém): `python -m venv .venv`, potom `pip install -r re
 
 - **Simulácia** – zadáš ľubovoľný počet úloh (aj milióny) a parametre: veľkosť tabuľky m × n, rozsahy cien,
   podiel vyrovnaných a nevyrovnaných úloh, seed. Počas výpočtu vidíš priebeh, tabuľku a 4 živé grafy.
-  Výpočet beží na všetkých jadrách procesora a dá sa kedykoľvek zastaviť.
+  Výpočet beží na všetkých jadrách procesora a dá sa kedykoľvek zastaviť. V poli **Metódy** si vyberieš, čím
+  sa počíta: metódy z prednášky (SZR, IM, VAM), len nové vymyslené metódy (JVR, SVR, JZR, MDD, PVM) alebo
+  všetkých osem naraz. Export do Excelu funguje pre každý výber; podrobné Vyhodnotenie je len pre metódy z prednášky.
 - **Export do Excelu** – súbor s výsledkami, grafmi a **vysvetlivkami v ľudskej reči**
   (hlavné zistenia vetami, čo znamená každý stĺpec, slovník pojmov, text „ako to vysvetliť vyučujúcemu“).
 - **Vlastná úloha** – do tabuľky zadáš vlastné ceny, kapacity a požiadavky (až 10 × 10), alebo vyplníš
-  príklad z prednášky. Vyberieš metódu (SZR, IM, VAM alebo všetky tri) a program vypíše **celý postup
+  príklad z prednášky. Vyberieš jednu metódu, metódy z prednášky, len nové metódy alebo všetky a program vypíše **celý postup
   krok za krokom**: ktoré pole a prečo obsadí (pri VAM aj diferencie), čo škrtá, potom potenciály u_i, v_j,
   hodnoty Δ, Dantzigov uzavretý obvod, presun t a nové riešenie až po optimum. Postup sa dá uložiť do .txt.
   Nevyrovnanú úlohu sám doplní fiktívnym dodávateľom alebo odberateľom.
@@ -142,6 +144,7 @@ cena najnižšia – „pozrie sa dopredu“, čo jej voľba spôsobí. Ručne j
 
 ```bash
 python simulacia.py --pocet 100000 --seed 20261025 --nazov hlavny100k   # hlavný beh (~1,5 min na 16 jadrách)
+python simulacia.py --pocet 20000 --metody vsetky --nazov vsetky20k      # --metody prednaska | nove | vsetky
 python analyza.py hlavny100k                                             # štatistiky + grafy
 python export_excel.py hlavny100k                                        # Excel s vysvetlivkami
 python test_metody.py                                                    # kontrola správnosti metód

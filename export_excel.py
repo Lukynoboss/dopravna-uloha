@@ -12,12 +12,33 @@ from openpyxl.chart.series import SeriesLabel
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from statistiky import HIST_HRANY, METODY, VZORKA_ULOH, Statistiky
+from statistiky import HIST_HRANY, VZORKA_ULOH, Statistiky
 
 KOREN = Path(__file__).resolve().parent
 
-NAZVY = {"SZR": "Metóda severozápadného rohu", "IM": "Indexová metóda", "VAM": "Vogelova aproximačná metóda"}
-FARBY = {"SZR": "2B7BD6", "IM": "EE6A2C", "VAM": "1FAE7A"}
+NAZVY = {"SZR": "Metóda severozápadného rohu", "IM": "Indexová metóda", "VAM": "Vogelova aproximačná metóda",
+         "JVR": "Metóda juhovýchodného rohu (nová)", "SVR": "Metóda severovýchodného rohu (nová)",
+         "JZR": "Metóda juhozápadného rohu (nová)", "MDD": "Metóda dvojitej diferencie (nová)",
+         "PVM": "Predvídavá metóda (nová)"}
+FARBY = {"SZR": "2B7BD6", "IM": "EE6A2C", "VAM": "1FAE7A", "JVR": "8E5BD0", "SVR": "C0398F", "JZR": "8A6D1E",
+         "MDD": "0F8B8D", "PVM": "D4A017"}
+ROHY = {"SZR", "JVR", "SVR", "JZR"}
+POJMY_METOD = {
+    "SZR": "Plní tabuľku od ľavého horného rohu („severozápad“) doprava a dole, vôbec nehľadí na ceny. Je "
+           "najjednoduchšia, ale výsledok býva drahý.",
+    "IM": "V každom kroku vyberie najlacnejšie voľné pole tabuľky a pošle cezeň čo najviac. Hľadí na ceny, preto je "
+          "oveľa lepšia ako SZR.",
+    "VAM": "Pre každý riadok a stĺpec spočíta rozdiel dvoch najnižších cien („pokuta“, ak nevyberieme najlacnejšie "
+           "pole). Najprv obslúži riadok alebo stĺpec s najväčšou pokutou, a to jeho najlacnejším poľom. Je "
+           "náročnejšia na výpočet, ale dáva riešenie najbližšie k optimu.",
+    "JVR": "Nová (vymyslená) metóda: ako SZR, ale začína v pravom dolnom rohu. Dáva vždy ten istý plán ako SZR.",
+    "SVR": "Nová (vymyslená) metóda: ako SZR, ale začína v pravom hornom rohu (odberateľov berie od posledného).",
+    "JZR": "Nová (vymyslená) metóda: ako SZR, ale začína v ľavom dolnom rohu. Dáva vždy ten istý plán ako SVR.",
+    "MDD": "Nová (vymyslená) metóda dvojitej diferencie: pole dostane diferenciu riadku, ak je v ňom najlacnejšie, "
+           "plus diferenciu stĺpca, ak je najlacnejšie v stĺpci; obsadí sa pole s najväčším súčtom. Kvalitou blízko VAM.",
+    "PVM": "Nová (vymyslená) predvídavá metóda: v každom kroku vyskúša 3 najlepšie polia podľa MDD, zvyšok dopočíta "
+           "VAM a vyberie pole s najnižšou celkovou cenou. Výrazne lepšia ako VAM, ale počíta viac.",
+}
 TYPY = {"vyrovnana": "vyrovnaná", "prebytok_ponuky": "prebytok ponuky", "prebytok_dopytu": "prebytok dopytu"}
 
 PISMO = "Arial"
@@ -96,8 +117,8 @@ def osi(graf):
     graf.y_axis.delete = False
 
 
-def farby_stlpcov(graf):
-    for i, m in enumerate(METODY):
+def farby_stlpcov(graf, M):
+    for i, m in enumerate(M):
         bod = DataPoint(idx=i)
         bod.graphicalProperties.solidFill = FARBY[m]
         bod.graphicalProperties.line.solidFill = FARBY[m]
@@ -106,32 +127,36 @@ def farby_stlpcov(graf):
 
 def zistenia(s: Statistiky) -> list[str]:
     st = s.stat
-    k = {m: max(1, st[m][0]) for m in METODY}
-    odch = {m: st[m][2] / k[m] for m in METODY}
-    opt = {m: 100 * st[m][1] / k[m] for m in METODY}
-    kroky = {m: st[m][3] / k[m] for m in METODY}
-    cas = {m: st[m][4] / k[m] / 1e6 for m in METODY}
-    najl = {m: 100 * s.najlepsia[m] / max(1, s.hotovo) for m in METODY}
-    poradie = sorted(METODY, key=odch.get)
-    b, d, t = poradie
+    M = s.metody
+    k = {m: max(1, st[m][0]) for m in M}
+    odch = {m: st[m][2] / k[m] for m in M}
+    opt = {m: 100 * st[m][1] / k[m] for m in M}
+    kroky = {m: st[m][3] / k[m] for m in M}
+    cas = {m: st[m][4] / k[m] / 1e6 for m in M}
+    najl = {m: 100 * s.najlepsia[m] / max(1, s.hotovo) for m in M}
+    poradie = sorted(M, key=odch.get)
+    b, t = poradie[0], poradie[-1]
+    ostatne = poradie[1:]
     vety = [
         f"1. Najsprávnejšia je {NAZVY[b]} ({b}). Jej prvé (východiskové) riešenie je v priemere len o "
-        f"{cislo(odch[b])} % drahšie ako najlacnejšie možné riešenie (optimum). {NAZVY[d]} ({d}) je v priemere "
-        f"o {cislo(odch[d])} % drahšia a {NAZVY[t]} ({t}) až o {cislo(odch[t])} %.",
-        f"2. {b} trafila optimum hneď na prvý pokus v {cislo(opt[b], 2)} % úloh ({d}: {cislo(opt[d], 2)} %, "
-        f"{t}: {cislo(opt[t], 2)} %). Keď porovnáme všetky tri metódy na tej istej úlohe, {b} dala najlacnejšie "
-        f"východiskové riešenie v {cislo(najl[b])} % úloh.",
+        f"{cislo(odch[b])} % drahšie ako najlacnejšie možné riešenie (optimum)."
+        + (" Ostatné: " + ", ".join(f"{m} {cislo(odch[m])} %" for m in ostatne) + "." if ostatne else ""),
+        f"2. {b} trafila optimum hneď na prvý pokus v {cislo(opt[b], 2)} % úloh"
+        + (" (" + ", ".join(f"{m}: {cislo(opt[m], 2)} %" for m in ostatne) + ")" if ostatne else "")
+        + f". Keď porovnáme všetky metódy na tej istej úlohe, {b} dala najlacnejšie východiskové riešenie "
+        f"v {cislo(najl[b])} % úloh.",
     ]
-    pk = sorted(METODY, key=kroky.get)
+    pk = sorted(M, key=kroky.get)
     vety.append(
         f"3. Najmenej práce po východiskovom riešení zostane pri {pk[0]}: metóda MODI ho musí opraviť priemerne "
-        f"{cislo(kroky[pk[0]])}-krát ({pk[1]}: {cislo(kroky[pk[1]])}, {pk[2]}: {cislo(kroky[pk[2]])} krokov). "
-        f"Jeden krok MODI = jedno prerozdelenie prepravy po uzavretom obvode v tabuľke.")
-    pc = sorted(METODY, key=cas.get)
+        f"{cislo(kroky[pk[0]])}-krát"
+        + (" (" + ", ".join(f"{m}: {cislo(kroky[m])}" for m in pk[1:]) + " krokov)" if len(pk) > 1 else "")
+        + ". Jeden krok MODI = jedno prerozdelenie prepravy po uzavretom obvode v tabuľke.")
+    pc = sorted(M, key=cas.get)
     vety.append(
-        f"4. V celkovom čase výpočtu (metóda + MODI) je najrýchlejšia {pc[0]} ({cislo(cas[pc[0]], 2)} ms na úlohu), "
-        f"potom {pc[1]} ({cislo(cas[pc[1]], 2)} ms) a {pc[2]} ({cislo(cas[pc[2]], 2)} ms). Čas závisí od počítača "
-        f"a programu, preto je spoľahlivejším meradlom práce počet krokov MODI.")
+        f"4. V celkovom čase výpočtu (metóda + MODI) je najrýchlejšia {pc[0]} ({cislo(cas[pc[0]], 2)} ms na úlohu)"
+        + (", potom " + ", ".join(f"{m} ({cislo(cas[m], 2)} ms)" for m in pc[1:]) if len(pc) > 1 else "")
+        + ". Čas závisí od počítača a programu, preto je spoľahlivejším meradlom práce počet krokov MODI.")
     vel = sorted(s.velkost)
     if len(vel) >= 2:
         mala, velka = vel[0], vel[-1]
@@ -149,9 +174,10 @@ def zistenia(s: Statistiky) -> list[str]:
         vety.append(
             f"6. Nevyrovnané úlohy (ponuka ≠ dopyt, treba pridať fiktívneho dodávateľa alebo odberateľa) sú ťažšie: "
             f"odchýlka {b} je pri vyrovnaných úlohách {cislo(gv[1] / max(1, gv[0]))} %, {texty}.")
-    vety.append(
-        f"Záver: {b} je najlepšia voľba – dá riešenie najbližšie k optimu a ušetrí najviac opravných krokov. "
-        f"{t} je najjednoduchšia, ale jej riešenie býva ďaleko od optima, lebo vôbec nehľadí na ceny.")
+    zaver = f"Záver: {b} je najlepšia voľba – dá riešenie najbližšie k optimu."
+    if t != b:
+        zaver += f" Najďalej od optima býva {t}" + (", lebo vôbec nehľadí na ceny." if t in ROHY else ".")
+    vety.append(zaver)
     return vety
 
 
@@ -159,6 +185,9 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
     cesta = Path(cesta)
     wb = Workbook()
     p = info.get("parametre_generatora") or {}
+    M = s.metody
+    k_ = len(M)
+    zoznam = ", ".join(M[:-1]) + (" a " if len(M) > 1 else "") + M[-1]
 
     wp = wb.active
     wp.title = "Podklady"
@@ -171,7 +200,7 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
                          "súčet krokov MODI", "súčet času metódy (ms)", "súčet času MODI (ms)",
                          "najlepšia v úlohe (počet)", "degenerované riešenie (počet)"])
     PODKLADY_RIADOK = {}
-    for m in METODY:
+    for m in M:
         k, opt, odch, kroky, _, tmet, tmodi, deg = s.stat[m]
         hodnoty = [m, k, opt, odch, kroky, tmet / 1e6, tmodi / 1e6, s.najlepsia[m], deg]
         for i, h in enumerate(hodnoty):
@@ -186,7 +215,7 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
     bunka(wp, f"B{r + 1}", s.chyby, fmt=CELE)
 
     wv = wb.create_sheet("Výsledky metód", 0)
-    sirky(wv, [9, 30, 12, 14, 14, 16, 14, 14, 13, 13, 13, 15, 11])
+    sirky(wv, [9, 37, 12, 14, 14, 16, 14, 14, 13, 13, 13, 15, 11])
     bunka(wv, "A1", "Výsledky metód – priemer cez všetky úlohy", F_PODNADPIS)
     odsek(wv, 2, "Každý riadok je jedna metóda. Pod názvom stĺpca je napísané, čo číslo znamená. Hodnoty sú "
                  "vzorce z hárku „Podklady“ – keď klikneš na bunku, uvidíš, ako sa počíta. Zelený riadok = "
@@ -198,7 +227,7 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
             "v koľkých % úloh bolo prvé riešenie hneď najlacnejšie možné",
             "o koľko % je prvé riešenie v priemere drahšie ako optimum (menej = lepšie)",
             "koľkokrát musela MODI riešenie opraviť, kým našla optimum (menej = menej práce)",
-            "v koľkých % úloh dala táto metóda najlacnejšie z troch riešení (pri zhode sa počíta každej)",
+            "v koľkých % úloh dala táto metóda najlacnejšie zo všetkých riešení (pri zhode sa počíta každej)",
             "priemerný čas samotnej metódy na jednu úlohu",
             "priemerný čas dopočítania optima metódou MODI",
             "metóda + MODI spolu; závisí od počítača",
@@ -206,7 +235,7 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
             "1 = najlepšia (najmenšia priemerná odchýlka)"]
     r0 = hlavicka(wv, 4, stlpce, vysv)
     prvy = r0
-    for i, m in enumerate(METODY):
+    for i, m in enumerate(M):
         r = r0 + i
         pr = PODKLADY_RIADOK[m]
         hodnoty = [
@@ -219,17 +248,17 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
             (f"=IFERROR(Podklady!G{pr}/Podklady!B{pr},0)", "0.000"),
             (f"=H{r}+I{r}", "0.000"),
             (f"=IFERROR(Podklady!I{pr}/Podklady!B{pr},0)", PCT),
-            (f"=RANK(E{r},$E${prvy}:$E${prvy + len(METODY) - 1},1)", "0"),
+            (f"=RANK(E{r},$E${prvy}:$E${prvy + k_ - 1},1)", "0"),
         ]
         for j, (h, fmt) in enumerate(hodnoty):
             c = bunka(wv, wv.cell(r, j + 1).coordinate, h, F_ZAKLAD, fmt, okraj=True,
                       align=Alignment(horizontal="left" if j < 2 else "right"))
             if j == 0:
                 c.font = Font(name=PISMO, size=10, bold=True, color=FARBY[m])
-    posledny = r0 + len(METODY) - 1
-    najlepsia = min(METODY, key=lambda m: s.stat[m][2] / max(1, s.stat[m][0]))
+    posledny = r0 + k_ - 1
+    najlepsia = min(M, key=lambda m: s.stat[m][2] / max(1, s.stat[m][0]))
     for j in range(1, len(stlpce) + 1):
-        wv.cell(r0 + METODY.index(najlepsia), j).fill = FILL_ZVYRAZNENIE
+        wv.cell(r0 + M.index(najlepsia), j).fill = FILL_ZVYRAZNENIE
     wv.freeze_panes = wv.cell(r0, 3)
 
     graf = BarChart()
@@ -241,7 +270,7 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
     graf.set_categories(Reference(wv, min_col=1, min_row=r0, max_row=posledny))
     graf.legend = None
     osi(graf)
-    farby_stlpcov(graf)
+    farby_stlpcov(graf, M)
     graf.height, graf.width = 7.5, 13
     wv.add_chart(graf, f"A{posledny + 3}")
     graf2 = BarChart()
@@ -252,7 +281,7 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
     graf2.set_categories(Reference(wv, min_col=1, min_row=r0, max_row=posledny))
     graf2.legend = None
     osi(graf2)
-    farby_stlpcov(graf2)
+    farby_stlpcov(graf2, M)
     graf2.height, graf2.width = 7.5, 13
     wv.add_chart(graf2, f"G{posledny + 3}")
 
@@ -267,9 +296,9 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
               "niekoľko dodávateľov (koľko tovaru majú), niekoľko odberateľov (koľko tovaru potrebujú) a cena "
               "prepravy jednej jednotky z každého dodávateľa ku každému odberateľovi. Cieľom je rozvrhnúť prepravu "
               "tak, aby bola celková cena čo najnižšia.\n"
-              "Každú úlohu sme vyriešili tromi metódami, ktoré nájdu prvé (východiskové) riešenie – SZR, IM a VAM. "
+              f"Každú úlohu sme vyriešili metódami, ktoré nájdu prvé (východiskové) riešenie – {zoznam}. "
               "Potom sme z každého východiskového riešenia pokračovali metódou MODI, až kým sme nenašli "
-              "najlacnejšie možné riešenie (optimum). Všetky tri metódy riešili vždy tie isté úlohy, takže "
+              "najlacnejšie možné riešenie (optimum). Všetky metódy riešili vždy tie isté úlohy, takže "
               "porovnanie je spravodlivé.\n"
               "Pýtame sa: ktorá metóda dá hneď na začiatku riešenie najbližšie k optimu (správnosť) a koľko "
               "práce potom ešte zostane – počet krokov MODI a čas (efektívnosť).", 3)
@@ -284,7 +313,8 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
     ceny = p.get("ceny", {})
     typ = p.get("typ", {})
     nastavenia = [
-        ("Počet vypočítaných úloh", s.hotovo, "koľko náhodných úloh sa vyriešilo (každá tromi metódami)"),
+        ("Počet vypočítaných úloh", s.hotovo, f"koľko náhodných úloh sa vyriešilo (každá metódami {zoznam})"),
+        ("Metódy", zoznam, "ktoré metódy východiskového riešenia sa porovnávali"),
         ("Zadaný počet úloh", info.get("pocet_zadany", s.hotovo),
          "ak je väčší než vypočítaný, výpočet sa zastavil skôr"),
         ("Dodávatelia m", "–".join(map(str, p.get("m_rozsah", []))), "počet riadkov tabuľky, vyberá sa náhodne"),
@@ -325,43 +355,48 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
         r += 1
 
     wg = wb.create_sheet("Podľa veľkosti")
-    sirky(wg, [14, 11] + [12] * 7 + [3] + [13] * 7)
+    opt_m = "VAM" if "VAM" in M else najlepsia
+    c_odch, c_kroky, c_opt = 3, 3 + k_, 3 + 2 * k_
+    c_suc = c_opt + 2
+    sirky(wg, [14, 11] + [12] * (2 * k_ + 1) + [3] + [13] * (2 * k_ + 1))
     bunka(wg, "A1", "Výsledky podľa veľkosti úlohy", F_PODNADPIS)
     odsek(wg, 2, "Veľkosť = väčší z rozmerov tabuľky, max(m, n). Napr. úloha 5 × 12 má veľkosť 12. Pri väčších "
                  "úlohách je viac možností, ako prepravu rozvrhnúť, preto je ťažšie trafiť optimum. Stĺpce vpravo "
                  "(sivé) sú súčty, z ktorých sa počítajú priemery.", 9, F_SIVE)
-    r0 = hlavicka(wg, 4, ["veľkosť max(m, n)", "počet úloh"] + [f"odchýlka {m}" for m in METODY]
-                  + [f"kroky MODI {m}" for m in METODY] + ["optimum VAM"],
+    r0 = hlavicka(wg, 4, ["veľkosť max(m, n)", "počet úloh"] + [f"odchýlka {m}" for m in M]
+                  + [f"kroky MODI {m}" for m in M] + [f"optimum {opt_m}"],
                   ["väčší rozmer tabuľky", "koľko úloh malo túto veľkosť"]
-                  + ["priemerná odchýlka od optima"] * 3 + ["priemerný počet krokov MODI"] * 3
-                  + ["v koľkých % úloh VAM trafila optimum hneď"])
-    hlavicka(wg, 4, [f"súčet odchýlok {m}" for m in METODY] + [f"súčet krokov {m}" for m in METODY]
-             + ["optimum VAM (počet)"], stlpec=11)
+                  + ["priemerná odchýlka od optima"] * k_ + ["priemerný počet krokov MODI"] * k_
+                  + [f"v koľkých % úloh {opt_m} trafila optimum hneď"])
+    hlavicka(wg, 4, [f"súčet odchýlok {m}" for m in M] + [f"súčet krokov {m}" for m in M]
+             + [f"optimum {opt_m} (počet)"], stlpec=c_suc)
     vel = sorted(s.velkost)
     for i, v in enumerate(vel):
         r = r0 + i
         g = s.velkost[v]
         bunka(wg, f"A{r}", v, F_TUCNE, okraj=True)
-        bunka(wg, f"B{r}", g[METODY[0]][0], fmt=CELE, okraj=True)
-        surove = [g[m][1] for m in METODY] + [g[m][2] for m in METODY] + [g.get("VAM", [0, 0, 0, 0])[3]]
+        bunka(wg, f"B{r}", g[M[0]][0], fmt=CELE, okraj=True)
+        surove = [g[m][1] for m in M] + [g[m][2] for m in M] + [g[opt_m][3]]
         for j, h in enumerate(surove):
-            bunka(wg, wg.cell(r, 11 + j).coordinate, h, F_SIVE, "#,##0.00" if j < 3 else CELE, okraj=True)
-        for j in range(3):
-            stl = get_column_letter(11 + j)
-            bunka(wg, wg.cell(r, 3 + j).coordinate, f"=IFERROR({stl}{r}/B{r}/100,0)", fmt=PCT, okraj=True)
-            stl = get_column_letter(14 + j)
-            bunka(wg, wg.cell(r, 6 + j).coordinate, f"=IFERROR({stl}{r}/B{r},0)", fmt=DES1, okraj=True)
-        bunka(wg, f"I{r}", f"=IFERROR(Q{r}/B{r},0)", fmt=PCT, okraj=True)
+            bunka(wg, wg.cell(r, c_suc + j).coordinate, h, F_SIVE, "#,##0.00" if j < k_ else CELE, okraj=True)
+        for j in range(k_):
+            stl = get_column_letter(c_suc + j)
+            bunka(wg, wg.cell(r, c_odch + j).coordinate, f"=IFERROR({stl}{r}/B{r}/100,0)", fmt=PCT, okraj=True)
+            stl = get_column_letter(c_suc + k_ + j)
+            bunka(wg, wg.cell(r, c_kroky + j).coordinate, f"=IFERROR({stl}{r}/B{r},0)", fmt=DES1, okraj=True)
+        stl = get_column_letter(c_suc + 2 * k_)
+        bunka(wg, wg.cell(r, c_opt).coordinate, f"=IFERROR({stl}{r}/B{r},0)", fmt=PCT, okraj=True)
     if vel:
         rk = r0 + len(vel) - 1
-        for nazov, c1, c2, kotva, fmt in (("Priemerná odchýlka od optima podľa veľkosti", 3, 5, "A", "0%"),
-                                          ("Priemerný počet krokov MODI podľa veľkosti", 6, 8, "K", "0")):
+        for nazov, c1, c2, kotva, fmt in (("Priemerná odchýlka od optima podľa veľkosti", c_odch, c_kroky - 1, "A", "0%"),
+                                          ("Priemerný počet krokov MODI podľa veľkosti", c_kroky, c_opt - 1,
+                                           get_column_letter(max(10, c_opt + 1)), "0")):
             lg = LineChart()
             lg.title = nazov
             lg.y_axis.numFmt = fmt
             lg.add_data(Reference(wg, min_col=c1, max_col=c2, min_row=r0, max_row=rk), titles_from_data=False)
             lg.set_categories(Reference(wg, min_col=1, min_row=r0, max_row=rk))
-            for ser, m in zip(lg.series, METODY):
+            for ser, m in zip(lg.series, M):
                 ser.tx = SeriesLabel(v=m)
                 ser.graphicalProperties.line.solidFill = FARBY[m]
                 ser.graphicalProperties.line.width = 28000
@@ -372,62 +407,62 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
     wg.freeze_panes = wg.cell(r0, 2)
 
     wt = wb.create_sheet("Podľa typu úlohy")
-    sirky(wt, [20, 12] + [13] * 9)
+    sirky(wt, [20, 12] + [13] * (3 * k_))
     bunka(wt, "A1", "Výsledky podľa typu úlohy", F_PODNADPIS)
     odsek(wt, 2, "Vyrovnaná úloha: dodávatelia majú spolu presne toľko, koľko odberatelia chcú. Prebytok ponuky: "
                  "dodávatelia majú viac → pridá sa fiktívny odberateľ, ktorý „zoberie“ zvyšok za cenu 0. Prebytok "
                  "dopytu: odberatelia chcú viac → pridá sa fiktívny dodávateľ s cenou 0.", 11, F_SIVE)
-    r0 = hlavicka(wt, 4, ["typ úlohy", "počet úloh"] + [f"odchýlka {m}" for m in METODY]
-                  + [f"kroky MODI {m}" for m in METODY] + [f"optimum {m}" for m in METODY],
-                  ["", ""] + ["priemerná odchýlka od optima"] * 3 + ["priemerný počet krokov MODI"] * 3
-                  + ["trafila optimum hneď"] * 3)
+    r0 = hlavicka(wt, 4, ["typ úlohy", "počet úloh"] + [f"odchýlka {m}" for m in M]
+                  + [f"kroky MODI {m}" for m in M] + [f"optimum {m}" for m in M],
+                  ["", ""] + ["priemerná odchýlka od optima"] * k_ + ["priemerný počet krokov MODI"] * k_
+                  + ["trafila optimum hneď"] * k_)
     for i, (t_, g) in enumerate(sorted(s.typ.items(), key=lambda x: list(TYPY).index(x[0]) if x[0] in TYPY else 9)):
         r = r0 + i
-        n_ = max(1, g[METODY[0]][0])
+        n_ = max(1, g[M[0]][0])
         bunka(wt, f"A{r}", TYPY.get(t_, t_), F_TUCNE, okraj=True)
-        bunka(wt, f"B{r}", g[METODY[0]][0], fmt=CELE, okraj=True)
-        for j, m in enumerate(METODY):
+        bunka(wt, f"B{r}", g[M[0]][0], fmt=CELE, okraj=True)
+        for j, m in enumerate(M):
             bunka(wt, wt.cell(r, 3 + j).coordinate, g[m][1] / n_ / 100, fmt=PCT, okraj=True)
-            bunka(wt, wt.cell(r, 6 + j).coordinate, g[m][2] / n_, fmt=DES1, okraj=True)
-            bunka(wt, wt.cell(r, 9 + j).coordinate, g[m][3] / n_, fmt=PCT2, okraj=True)
+            bunka(wt, wt.cell(r, 3 + k_ + j).coordinate, g[m][2] / n_, fmt=DES1, okraj=True)
+            bunka(wt, wt.cell(r, 3 + 2 * k_ + j).coordinate, g[m][3] / n_, fmt=PCT2, okraj=True)
     bunka(wt, f"A{r0 + len(s.typ) + 1}", "Hodnoty sú priemery vypočítané programom zo súčtov počas simulácie.", F_SIVE)
 
     wh = wb.create_sheet("Rozdelenie odchýlky")
-    sirky(wh, [16] + [12] * 6)
+    sirky(wh, [16] + [12] * (2 * k_))
     bunka(wh, "A1", "Rozdelenie odchýlky od optima", F_PODNADPIS)
     odsek(wh, 2, "Koľko úloh padlo do ktorého pásma odchýlky. Napr. riadok „0–5 %“ = úlohy, kde bolo prvé riešenie "
                  "najviac o 5 % drahšie ako optimum (vrátane úloh, kde ho metóda trafila presne). Posledný riadok "
                  "zahŕňa všetko od 495 % vyššie. Čím viac úloh je v horných riadkoch, tým je metóda lepšia.", 7, F_SIVE)
-    r0 = hlavicka(wh, 4, ["pásmo odchýlky"] + [f"počet úloh {m}" for m in METODY] + [f"podiel {m}" for m in METODY])
+    r0 = hlavicka(wh, 4, ["pásmo odchýlky"] + [f"počet úloh {m}" for m in M] + [f"podiel {m}" for m in M])
     hrany = HIST_HRANY
     for i in range(len(hrany) - 1):
         r = r0 + i
         text = f"{hrany[i]:.0f}–{hrany[i + 1]:.0f} %" if i < len(hrany) - 2 else f"{hrany[i]:.0f} % a viac"
         bunka(wh, f"A{r}", text, okraj=True)
-        for j, m in enumerate(METODY):
+        for j, m in enumerate(M):
             bunka(wh, wh.cell(r, 2 + j).coordinate, int(s.hist[m][i]), fmt=CELE, okraj=True)
             stl = get_column_letter(2 + j)
-            bunka(wh, wh.cell(r, 5 + j).coordinate,
+            bunka(wh, wh.cell(r, 2 + k_ + j).coordinate,
                   f"=IFERROR({stl}{r}/SUM({stl}${r0}:{stl}${r0 + len(hrany) - 2}),0)", fmt=PCT, okraj=True)
     rk = r0 + len(hrany) - 2
     lg = LineChart()
     lg.title = "Podiel úloh podľa odchýlky od optima"
     lg.y_axis.scaling.min = 0
     lg.y_axis.numFmt = "0%"
-    lg.add_data(Reference(wh, min_col=5, max_col=7, min_row=r0 - 1, max_row=rk), titles_from_data=True)
+    lg.add_data(Reference(wh, min_col=2 + k_, max_col=1 + 2 * k_, min_row=r0 - 1, max_row=rk), titles_from_data=True)
     lg.set_categories(Reference(wh, min_col=1, min_row=r0, max_row=rk))
-    for ser, m in zip(lg.series, METODY):
+    for ser, m in zip(lg.series, M):
         ser.graphicalProperties.line.solidFill = FARBY[m]
         ser.graphicalProperties.line.width = 22000
     osi(lg)
     lg.height, lg.width = 9, 18
-    wh.add_chart(lg, "I4")
+    wh.add_chart(lg, f"{get_column_letter(2 * k_ + 3)}4")
     wh.freeze_panes = wh.cell(r0, 2)
 
     wu = wb.create_sheet("Údaje (vzorka)")
     sirky(wu, [10, 9, 9, 16, 10, 14, 9, 12, 12, 12, 12, 12, 12, 12, 12])
-    pocet_vz = len(s.vzorka) // len(METODY)
-    odsek(wu, 1, f"Každý riadok = jedna úloha vyriešená jednou metódou (každá úloha má 3 riadky: SZR, IM, VAM). "
+    pocet_vz = len(s.vzorka) // k_
+    odsek(wu, 1, f"Každý riadok = jedna úloha vyriešená jednou metódou (každá úloha má {k_} riadky: {zoznam}). "
                  f"Je tu prvých {cislo(pocet_vz, 0)} úloh z {cislo(s.hotovo, 0)}. Šípkami v hlavičke sa dá "
                  f"filtrovať (napr. len VAM alebo len úlohy 3 × 3).", 15, F_SIVE)
     nazvy_u = ["číslo úlohy", "dodávatelia m", "odberatelia n", "typ úlohy", "ceny 1 až", "fiktívny účastník",
@@ -435,7 +470,7 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
                "trafila optimum", "čas metódy (µs)", "čas MODI (µs)", "kroky MODI"]
     vysv_u = ["poradové číslo (spolu so seedom ju presne určuje)", "počet riadkov", "počet stĺpcov",
               "vyrovnaná / prebytok ponuky / dopytu", "najvyššia možná cena prepravy",
-              "pridaný riadok alebo stĺpec s cenou 0", "SZR, IM alebo VAM",
+              "pridaný riadok alebo stĺpec s cenou 0", "skratka metódy",
               "koľko polí sa doplnilo nulou (degenerácia)", "celková cena prvého riešenia",
               "najnižšia možná celková cena", "(z − z*) / z*", "áno = prvé riešenie je hneď optimálne",
               "mikrosekundy (1 µs = 0,001 ms)", "mikrosekundy", "počet opráv metódou MODI"]
@@ -468,14 +503,7 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
         ("Východiskové riešenie", "Prvý prípustný plán prepravy (všetko sa rozvezie, nikto nedostane viac/menej). "
                                   "Nemusí byť najlacnejší – slúži ako štart pre hľadanie optima."),
         ("Optimum, z*", "Najlacnejší možný plán prepravy a jeho cena. Našli sme ho metódou MODI."),
-        ("SZR – metóda severozápadného rohu", "Plní tabuľku od ľavého horného rohu („severozápad“) doprava a "
-                                               "dole, vôbec nehľadí na ceny. Je najjednoduchšia, ale výsledok býva drahý."),
-        ("IM – indexová metóda", "V každom kroku vyberie najlacnejšie voľné pole tabuľky a pošle cezeň čo najviac. "
-                                 "Hľadí na ceny, preto je oveľa lepšia ako SZR."),
-        ("VAM – Vogelova aproximačná metóda", "Pre každý riadok a stĺpec spočíta rozdiel dvoch najnižších cien "
-                                              "(„pokuta“, ak nevyberieme najlacnejšie pole). Najprv obslúži riadok "
-                                              "alebo stĺpec s najväčšou pokutou, a to jeho najlacnejším poľom. Je "
-                                              "náročnejšia na výpočet, ale dáva riešenie najbližšie k optimu."),
+        *[(f"{m} – {NAZVY[m].lower()}", POJMY_METOD[m]) for m in M],
         ("MODI (metóda potenciálov)", "Postup, ktorý z východiskového riešenia krok za krokom nájde optimum. Spočíta "
                                       "tzv. potenciály u_i a v_j a zistí, či sa dá plán ešte zlacniť. Ak áno, presunie "
                                       "prepravu po uzavretom obvode v tabuľke (jeden krok MODI) a opakuje to."),
@@ -484,7 +512,7 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
         ("Odchýlka od optima (%)", "(z − z*) / z* × 100. Hovorí, o koľko percent je prvé riešenie drahšie ako "
                                    "najlacnejšie možné. 0 % = metóda trafila optimum hneď."),
         ("Trafila optimum", "Prvé riešenie metódy bolo hneď najlacnejšie možné (odchýlka 0 %)."),
-        ("Najlepšia v úlohe", "V tej istej úlohe dala metóda najlacnejšie z troch prvých riešení. Ak dve metódy "
+        ("Najlepšia v úlohe", "V tej istej úlohe dala metóda najlacnejšie zo všetkých prvých riešení. Ak dve metódy "
                               "dali rovnako dobré riešenie, počíta sa obom."),
         ("Vyrovnaná / nevyrovnaná úloha", "Vyrovnaná: celková ponuka = celkový dopyt. Nevyrovnaná: pridá sa "
                                           "fiktívny dodávateľ alebo odberateľ s cenou 0, aby sa vyrovnala."),
@@ -505,10 +533,10 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
     r += 1
     b = najlepsia
     vysvetlenie = [
-        "1. Cieľ: zistiť, ktorá z metód SZR, IM a VAM z prednášky dáva najlepšie východiskové riešenie a koľko "
+        f"1. Cieľ: zistiť, ktorá z metód {zoznam} dáva najlepšie východiskové riešenie a koľko "
         "práce potom zostane metóde MODI.",
         f"2. Postup: program vygeneroval {cislo(s.hotovo, 0)} náhodných úloh rôznych veľkostí, s rôznymi cenami, "
-        "vyrovnané aj nevyrovnané. Každú vyriešil všetkými tromi metódami a potom MODI do optima.",
+        "vyrovnané aj nevyrovnané. Každú vyriešil všetkými porovnávanými metódami a potom MODI do optima.",
         "3. Správnosť programu: metódy sme overili na príkladoch z prednášky (výsledky sedia) a optimum sme "
         "porovnali s nezávislým riešičom (knižnica scipy) – zhoda vo všetkých kontrolovaných úlohách.",
         "4. Meranie: pre každú úlohu a metódu sme zapísali cenu prvého riešenia z, optimum z*, odchýlku "

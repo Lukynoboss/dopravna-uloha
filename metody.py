@@ -207,6 +207,7 @@ METODY = {"SZR": szr, "IM": indexova, "VAM": vam}
 NOVE_METODY = {"JVR": juhovychodny, "SVR": severovychodny, "JZR": juhozapadny,
                "MDD": dvojita_diferencia, "PVM": predvidava}
 VSETKY_METODY = {**METODY, **NOVE_METODY}
+SKUPINY = {"prednaska": list(METODY), "nove": list(NOVE_METODY), "vsetky": list(VSETKY_METODY)}
 
 
 def potencialy(C, baza):
