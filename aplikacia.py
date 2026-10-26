@@ -26,6 +26,7 @@ from matplotlib.figure import Figure
 
 import generator
 import metody
+import postup
 import simulacia
 from statistiky import HIST_HRANY, Statistiky
 
@@ -173,6 +174,7 @@ class Aplikacia(tk.Tk):
         st.configure("Nadpis.TLabel", background=KARTA, foreground=TEXT, font=pismo(11, True))
         st.configure("Velke.TLabel", background=KARTA, foreground=TEXT, font=pismo(18, True))
         st.configure("Karta.TCheckbutton", background=KARTA)
+        st.configure("Karta.TRadiobutton", background=KARTA)
         st.configure("TNotebook", background=POZADIE, borderwidth=0)
         st.configure("TNotebook.Tab", padding=(14, 6), font=pismo(10, True))
         st.map("TNotebook.Tab", background=[("selected", KARTA)], foreground=[("selected", AKCENT)])
@@ -658,7 +660,7 @@ class Aplikacia(tk.Tk):
 
     def _textove_pole(self, rodic):
         ram = tk.Frame(rodic, bg=KARTA, highlightbackground=OKRAJ, highlightthickness=1)
-        txt = tk.Text(ram, font=(MONO, 11), bg=KARTA, fg=TEXT, relief="flat", wrap="none", padx=16, pady=12)
+        txt = tk.Text(ram, font=(MONO, 11), bg=KARTA, fg=TEXT, relief="flat", wrap="word", padx=16, pady=12)
         sb = ttk.Scrollbar(ram, command=txt.yview)
         txt.configure(yscrollcommand=sb.set)
         sb.pack(side="right", fill="y")
@@ -667,6 +669,7 @@ class Aplikacia(tk.Tk):
         txt.tag_configure("sivy", foreground=SIVA)
         txt.tag_configure("opt", foreground="#178a5e", font=(MONO, 11, "bold"))
         txt.tag_configure("krok", foreground="#3d4a5c")
+        txt.tag_configure("podnadpis", font=pismo(11, True), foreground="#1f4e79", spacing1=6)
         for m in METODY:
             txt.tag_configure(m, foreground=FARBY[m], font=pismo(12, True), spacing1=10, spacing3=4)
         return ram, txt
@@ -705,7 +708,7 @@ class Aplikacia(tk.Tk):
         nu = generator.generuj(20261025, id_, p)
         self._vypis_ulohu(self.txt, nu.C, nu.a, nu.b, f"Úloha č. {id_}")
 
-    def _vypis_ulohu(self, t, C, a, b, nazov: str, kroky: bool = False):
+    def _vypis_ulohu(self, t, C, a, b, nazov: str, kroky: bool = False, vyber=None):
         C = np.asarray(C, dtype=np.int64)
         a = np.asarray(a, dtype=np.int64)
         b = np.asarray(b, dtype=np.int64)
@@ -740,6 +743,8 @@ class Aplikacia(tk.Tk):
 
         vysledky = []
         for nazov_m, f in metody.METODY.items():
+            if vyber and nazov_m not in vyber:
+                continue
             t0 = time.perf_counter_ns()
             start = f(u)
             t1 = time.perf_counter_ns()
@@ -782,7 +787,8 @@ class Aplikacia(tk.Tk):
     def _tab_vlastna(self):
         self.vl_m = tk.StringVar(value="3")
         self.vl_n = tk.StringVar(value="4")
-        self.vl_kroky = tk.BooleanVar(value=True)
+        self.vl_postup = tk.BooleanVar(value=True)
+        self.vl_metoda = tk.StringVar(value="VSETKY")
         self.vl_c: dict[tuple[int, int], tk.StringVar] = {}
         self.vl_a: dict[int, tk.StringVar] = {}
         self.vl_b: dict[int, tk.StringVar] = {}
@@ -819,11 +825,21 @@ class Aplikacia(tk.Tk):
         self.vl_sucty = ttk.Label(self.vl_karta, text="", style="Sivy.TLabel")
         self.vl_sucty.pack(anchor="w", pady=(8, 0))
 
+        k = self._karta(lavy, "Ako počítať", fill="x", pady=(0, 10))
+        for hodnota, text in (("VSETKY", "Všetky tri metódy a ich porovnanie"),
+                              ("SZR", "SZR – metóda severozápadného rohu"),
+                              ("IM", "IM – indexová metóda"),
+                              ("VAM", "VAM – Vogelova aproximačná metóda")):
+            ttk.Radiobutton(k, text=text, value=hodnota, variable=self.vl_metoda,
+                            style="Karta.TRadiobutton").pack(anchor="w", pady=1)
+        ttk.Checkbutton(k, text="Celý postup krok za krokom (obsadzovanie polí, potenciály, Δ, obvod)",
+                        variable=self.vl_postup, style="Karta.TCheckbutton").pack(anchor="w", pady=(6, 0))
+
         dole = ttk.Frame(lavy, style="Pozadie.TFrame")
         dole.pack(fill="x")
-        ttk.Checkbutton(dole, text="Ukázať jednotlivé kroky MODI", variable=self.vl_kroky).pack(anchor="w",
-                                                                                              pady=(0, 6))
-        ttk.Button(dole, text="▶  Vyriešiť", style="Akcent.TButton", command=self._vl_vyries).pack(fill="x")
+        ttk.Button(dole, text="▶  Vyriešiť", style="Akcent.TButton", command=self._vl_vyries).pack(
+            side="left", fill="x", expand=True, padx=(0, 6))
+        ttk.Button(dole, text="Uložiť postup…", command=self._vl_uloz).pack(side="left", fill="y")
 
         ram, self.vl_txt = self._textove_pole(pravy)
         ram.pack(fill="both", expand=True)
@@ -959,7 +975,38 @@ class Aplikacia(tk.Tk):
                 + "\n\nCeny musia byť celé čísla 0 alebo viac, kapacity a požiadavky celé čísla 1 alebo viac.",
                 parent=self)
             return
-        self._vypis_ulohu(self.vl_txt, C, a, b, "Vlastná úloha", kroky=self.vl_kroky.get())
+        metoda = self.vl_metoda.get()
+        if not self.vl_postup.get():
+            vyber = None if metoda == "VSETKY" else [metoda]
+            self._vypis_ulohu(self.vl_txt, C, a, b, "Vlastná úloha", vyber=vyber)
+            return
+        casti, vysledky = postup.cely_postup(C, a, b, metoda)
+        t = self.vl_txt
+        t.configure(state="normal")
+        t.delete("1.0", "end")
+        for text, tag in casti:
+            t.insert("end", text, tag)
+        if len(vysledky) > 1:
+            z_opt = min(o.z for _, o in vysledky.values())
+            t.insert("end", "\nPorovnanie metód\n", "nadpis")
+            t.insert("end", f"  {'metóda':<8}{'z':>8}{'odchýlka':>11}{'kroky MODI':>13}\n", "sivy")
+            for nazov_m, (start, opt) in vysledky.items():
+                odch = 100 * (start.z - z_opt) / z_opt if z_opt else 0
+                t.insert("end", f"  {nazov_m:<8}{start.z:>8}{cislo(odch, 1):>9} %{opt.kroky_modi:>13}\n", nazov_m)
+            t.insert("end", f"\nOptimum z* = {z_opt}\n", "opt")
+        t.configure(state="disabled")
+        t.see("1.0")
+
+    def _vl_uloz(self):
+        obsah = self.vl_txt.get("1.0", "end").strip()
+        if not obsah:
+            return
+        cesta = filedialog.asksaveasfilename(parent=self, title="Uložiť postup", initialdir=simulacia.PRIECINOK,
+                                             initialfile="postup_vlastna_uloha.txt", defaultextension=".txt",
+                                             filetypes=[("Text", "*.txt")])
+        if cesta:
+            Path(cesta).write_text(obsah + "\n", encoding="utf-8")
+            otvor(cesta)
 
     def _zatvor(self):
         if self.bezi:

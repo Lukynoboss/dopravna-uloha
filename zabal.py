@@ -8,7 +8,7 @@ KOREN = Path(__file__).resolve().parent
 NAZOV = "DopravnaUloha"
 
 PROGRAM = ["aplikacia.py", "metody.py", "generator.py", "simulacia.py", "statistiky.py", "export_excel.py",
-           "analyza.py", "test_metody.py", "spusti.py",
+           "analyza.py", "test_metody.py", "spusti.py", "postup.py",
            "aplikacia.bat", "aplikacia.command", "spusti.bat", "requirements.txt", "README.md"]
 VYSLEDKY = {
     "vysledky/suhrn.md": "vysledky/suhrn.md",

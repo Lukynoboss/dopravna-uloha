@@ -45,7 +45,9 @@ Ručne (ktorýkoľvek systém): `python -m venv .venv`, potom `pip install -r re
 - **Export do Excelu** – súbor s výsledkami, grafmi a **vysvetlivkami v ľudskej reči**
   (hlavné zistenia vetami, čo znamená každý stĺpec, slovník pojmov, text „ako to vysvetliť vyučujúcemu“).
 - **Vlastná úloha** – do tabuľky zadáš vlastné ceny, kapacity a požiadavky (až 10 × 10), alebo vyplníš
-  príklad z prednášky. Program ju vyrieši metódami SZR, IM a VAM, ukáže jednotlivé kroky MODI a optimum.
+  príklad z prednášky. Vyberieš metódu (SZR, IM, VAM alebo všetky tri) a program vypíše **celý postup
+  krok za krokom**: ktoré pole a prečo obsadí (pri VAM aj diferencie), čo škrtá, potom potenciály u_i, v_j,
+  hodnoty Δ, Dantzigov uzavretý obvod, presun t a nové riešenie až po optimum. Postup sa dá uložiť do .txt.
   Nevyrovnanú úlohu sám doplní fiktívnym dodávateľom alebo odberateľom.
 - **Ukážka náhodnej úlohy** – malá náhodná úloha a riešenia všetkých troch metód + optimum, porovnateľné
   s ručným výpočtom.
@@ -60,6 +62,7 @@ Ručne (ktorýkoľvek systém): `python -m venv .venv`, potom `pip install -r re
 | `generator.py` | náhodné úlohy (úloha je určená seedom a svojím číslom → výsledky sa dajú zopakovať) |
 | `simulacia.py` | hromadný výpočet na viacerých jadrách (aj z príkazového riadku) |
 | `statistiky.py` | priebežné súčty výsledkov |
+| `postup.py` | podrobný postup výpočtu krok za krokom (vlastná úloha) |
 | `export_excel.py` | export do Excelu s vysvetlivkami |
 | `analyza.py` | podrobné štatistiky a grafy z uloženého behu |
 | `test_metody.py` | kontrola správnosti: príklady z prednášky + 2000 úloh porovnaných s riešičom scipy |
