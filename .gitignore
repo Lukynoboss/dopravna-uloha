@@ -1,0 +1,27 @@
+# prostredie Pythonu – vytvára sa na každom počítači zvlášť (aplikacia.bat / aplikacia.command)
+.venv/
+__pycache__/
+*.pyc
+
+# veľké a dočasné výsledky simulácie – dajú sa zopakovať zo seedu
+vysledky/*.csv
+vysledky/beh_*.json
+!vysledky/beh_hlavny100k.json
+vysledky/suhrn_*.md
+grafy/*/
+
+# hotové balíky (zabal.py)
+export/
+
+# pracovné poznámky a nastavenia Claude Code (nie sú súčasťou programu)
+.claude/
+claude/
+CLAUDE.md
+
+# správa sa generuje cez Node.js (sprava/vytvor_spravu.js)
+node_modules/
+
+# systémové súbory
+.DS_Store
+Thumbs.db
+~$*
