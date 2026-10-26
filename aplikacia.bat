@@ -1,7 +1,4 @@
 @echo off
-rem Dopravna uloha - spustenie okna aplikacie (Windows x64 aj ARM64).
-rem Pri prvom spusteni vytvori prostredie .venv a nainstaluje kniznice.
-rem "aplikacia.bat instaluj" len pripravi prostredie a skonci.
 setlocal
 cd /d "%~dp0"
 
@@ -43,7 +40,6 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
-rem scipy je potrebne len na podrobne vyhodnotenie a test metod - aplikacia funguje aj bez neho
 ".venv\Scripts\python.exe" -m pip install scipy || echo  Upozornenie: scipy sa nenainstaloval, tlacidlo Vyhodnotit nebude fungovat.
 echo.
 echo  Hotovo.

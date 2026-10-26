@@ -1,8 +1,3 @@
-"""Spúšťač projektu – jednoduché menu v termináli.
-
-Spustenie: dvojklik na spusti.bat, alebo
-    .venv\\Scripts\\python.exe spusti.py
-"""
 from __future__ import annotations
 
 import os
@@ -42,7 +37,6 @@ def ziva_simulacia():
         if otazka(f"Beh '{nazov}' už existuje. Prepísať? (a/n)", "n").lower() != "a":
             print("Zrušené.")
             return
-    # menšie bloky → plynulejší priebežný výpis (výsledky od veľkosti bloku nezávisia)
     blok = max(10, min(100, pocet // (procesy * 20) or 10))
     print()
     simulacia.main(["--pocet", str(pocet), "--procesy", str(procesy), "--seed", str(seed),
@@ -59,7 +53,6 @@ def vypis_maticu(nazov: str, M: np.ndarray, riadky: list[str], stlpce: list[str]
 
 
 def ukazka_ulohy():
-    """Jedna malá náhodná úloha: tabuľka, východiskové riešenia troch metód a optimum."""
     p = dict(generator.PARAMETRE, m_rozsah=[3, 5], n_rozsah=[3, 6])
     id_ = cele_cislo("Číslo úlohy (iné číslo = iná úloha)", int(time.time()) % 100_000)
     nu = generator.generuj(20261025, id_, p)

@@ -1,8 +1,3 @@
-"""Priebežné súčty výsledkov simulácie (pre okno aplikácie aj export do Excelu).
-
-Ukladajú sa len počty a súčty, nie všetky riadky, takže pamäť nerastie ani pri miliónoch úloh.
-Prvých VZORKA_ULOH úloh sa navyše drží celých (hárok „Údaje“ v Exceli).
-"""
 from __future__ import annotations
 
 import csv
@@ -13,10 +8,9 @@ import numpy as np
 import metody
 
 METODY = list(metody.METODY)
-HIST_HRANY = np.arange(0, 505, 5.0)   # odchýlka 0–500 % po 5 %, väčšie sa zarátajú do posledného stĺpca
+HIST_HRANY = np.arange(0, 505, 5.0)
 VZORKA_ULOH = 20_000
 
-# poradie stĺpcov v riadku výsledku (rovnaké ako simulacia.STLPCE)
 I_ID, I_M, I_N, I_TYP, I_CENA, I_FIKT, I_MET, I_DEG, I_Z, I_ZOPT, I_ODCH, I_OPT, I_TMET, I_TMODI, I_KROKY = range(15)
 
 
@@ -24,12 +18,10 @@ class Statistiky:
     def __init__(self):
         self.hotovo = 0
         self.chyby = 0
-        # metóda -> [počet, optimum, súčet odchýlok, súčet krokov MODI, súčet času spolu (ns),
-        #            súčet času metódy (ns), súčet času MODI (ns), degenerované riešenia]
         self.stat = {m: [0, 0, 0.0, 0, 0, 0, 0, 0] for m in METODY}
         self.najlepsia = {m: 0 for m in METODY}
-        self.velkost: dict[int, dict[str, list]] = {}   # max(m, n) -> metóda -> [počet, odch, kroky, optimum]
-        self.typ: dict[str, dict[str, list]] = {}       # typ úlohy -> metóda -> [počet, odch, kroky, optimum]
+        self.velkost: dict[int, dict[str, list]] = {}
+        self.typ: dict[str, dict[str, list]] = {}
         self.hist = {m: np.zeros(len(HIST_HRANY) - 1) for m in METODY}
         self.historia: list[tuple[int, list[float]]] = []
         self.vzorka: list[list] = []
@@ -39,7 +31,6 @@ class Statistiky:
         if len(self.vzorka) < VZORKA_ULOH * len(METODY):
             self.vzorka.extend(riadky[:VZORKA_ULOH * len(METODY) - len(self.vzorka)])
         odch_batch = {m: [] for m in METODY}
-        # riadky jednej úlohy idú za sebou (SZR, IM, VAM)
         for i in range(0, len(riadky), len(METODY)):
             trojica = riadky[i:i + len(METODY)]
             najmensie = min(r[I_Z] for r in trojica)
@@ -76,7 +67,6 @@ class Statistiky:
 
     @classmethod
     def z_csv(cls, cesta: Path, blok: int = 3000) -> "Statistiky":
-        """Načíta uložený beh (vysledky/beh_<názov>.csv) do súčtov."""
         s = cls()
         typy = (int, int, int, str, int, str, str, int, int, int, float, int, int, int, int)
         davka = []

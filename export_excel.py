@@ -1,14 +1,3 @@
-"""Export výsledkov simulácie do Excelu – s vysvetlivkami v ľudskej reči.
-
-Použitie:
-    z okna aplikácie: tlačidlo „Export do Excelu“
-    z príkazového riadku (uložený beh):
-        .venv\\Scripts\\python.exe export_excel.py hlavny100k      → vysledky/hlavny100k.xlsx
-
-Hárky: Prehľad (čo sa robilo, hlavné zistenia), Výsledky metód, Podľa veľkosti, Podľa typu úlohy,
-Rozdelenie odchýlky, Údaje (vzorka), Slovník pojmov, Podklady (súčty, z ktorých ostatné hárky
-počítajú priemery vzorcami).
-"""
 from __future__ import annotations
 
 import json
@@ -56,7 +45,6 @@ def cislo(x: float, des: int = 1) -> str:
     return f"{x:,.{des}f}".replace(",", " ").replace(".", ",")
 
 
-# ---------------------------------------------------------------- pomocné zapisovanie
 def bunka(ws, ref, hodnota, font=F_ZAKLAD, fmt=None, fill=None, align=None, okraj=False):
     c = ws[ref]
     c.value = hodnota
@@ -73,13 +61,11 @@ def bunka(ws, ref, hodnota, font=F_ZAKLAD, fmt=None, fill=None, align=None, okra
 
 
 def odsek(ws, riadok: int, text: str, stlpce: int = 8, font=F_ZAKLAD, vyska: float | None = None):
-    """Dlhší text cez viac stĺpcov (zlúčené bunky so zalamovaním)."""
     ws.merge_cells(start_row=riadok, start_column=1, end_row=riadok, end_column=stlpce)
     c = ws.cell(riadok, 1, text)
     c.font = font
     c.alignment = ZALOM
     if vyska is None:
-        # hrubý odhad výšky riadku podľa dĺžky textu
         sirka = sum((ws.column_dimensions[get_column_letter(i)].width or 10) for i in range(1, stlpce + 1))
         riadkov = max(1, sum(len(cast) // max(1, int(sirka * 1.1)) + 1 for cast in text.split("\n")))
         vyska = 14 * riadkov + 2
@@ -106,7 +92,6 @@ def sirky(ws, hodnoty: list[float]):
 
 
 def osi(graf):
-    """Novší Excel skrýva osi grafov z openpyxl, ak sa výslovne nezapnú."""
     graf.x_axis.delete = False
     graf.y_axis.delete = False
 
@@ -119,7 +104,6 @@ def farby_stlpcov(graf):
         graf.series[0].dPt.append(bod)
 
 
-# ---------------------------------------------------------------- hlavné zistenia (text)
 def zistenia(s: Statistiky) -> list[str]:
     st = s.stat
     k = {m: max(1, st[m][0]) for m in METODY}
@@ -171,13 +155,11 @@ def zistenia(s: Statistiky) -> list[str]:
     return vety
 
 
-# ---------------------------------------------------------------- export
 def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
     cesta = Path(cesta)
     wb = Workbook()
     p = info.get("parametre_generatora") or {}
 
-    # ======================= Podklady (súčty zo simulácie) =======================
     wp = wb.active
     wp.title = "Podklady"
     sirky(wp, [12, 12, 16, 18, 18, 20, 20, 16, 18])
@@ -203,7 +185,6 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
     bunka(wp, f"A{r + 1}", "Chyby počas výpočtu", F_TUCNE)
     bunka(wp, f"B{r + 1}", s.chyby, fmt=CELE)
 
-    # ======================= Výsledky metód =======================
     wv = wb.create_sheet("Výsledky metód", 0)
     sirky(wv, [9, 30, 12, 14, 14, 16, 14, 14, 13, 13, 13, 15, 11])
     bunka(wv, "A1", "Výsledky metód – priemer cez všetky úlohy", F_PODNADPIS)
@@ -275,7 +256,6 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
     graf2.height, graf2.width = 7.5, 13
     wv.add_chart(graf2, f"G{posledny + 3}")
 
-    # ======================= Prehľad =======================
     wo = wb.create_sheet("Prehľad", 0)
     sirky(wo, [30, 22, 60, 12, 12, 12, 12, 12])
     bunka(wo, "A1", "Porovnanie metód východiskového riešenia dopravnej úlohy", F_NADPIS)
@@ -344,7 +324,6 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
         bunka(wo, f"B{r}", popis)
         r += 1
 
-    # ======================= Podľa veľkosti =======================
     wg = wb.create_sheet("Podľa veľkosti")
     sirky(wg, [14, 11] + [12] * 7 + [3] + [13] * 7)
     bunka(wg, "A1", "Výsledky podľa veľkosti úlohy", F_PODNADPIS)
@@ -392,7 +371,6 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
             wg.add_chart(lg, f"{kotva}{rk + 3}")
     wg.freeze_panes = wg.cell(r0, 2)
 
-    # ======================= Podľa typu úlohy =======================
     wt = wb.create_sheet("Podľa typu úlohy")
     sirky(wt, [20, 12] + [13] * 9)
     bunka(wt, "A1", "Výsledky podľa typu úlohy", F_PODNADPIS)
@@ -414,7 +392,6 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
             bunka(wt, wt.cell(r, 9 + j).coordinate, g[m][3] / n_, fmt=PCT2, okraj=True)
     bunka(wt, f"A{r0 + len(s.typ) + 1}", "Hodnoty sú priemery vypočítané programom zo súčtov počas simulácie.", F_SIVE)
 
-    # ======================= Rozdelenie odchýlky =======================
     wh = wb.create_sheet("Rozdelenie odchýlky")
     sirky(wh, [16] + [12] * 6)
     bunka(wh, "A1", "Rozdelenie odchýlky od optima", F_PODNADPIS)
@@ -447,7 +424,6 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
     wh.add_chart(lg, "I4")
     wh.freeze_panes = wh.cell(r0, 2)
 
-    # ======================= Údaje (vzorka) =======================
     wu = wb.create_sheet("Údaje (vzorka)")
     sirky(wu, [10, 9, 9, 16, 10, 14, 9, 12, 12, 12, 12, 12, 12, 12, 12])
     pocet_vz = len(s.vzorka) // len(METODY)
@@ -477,7 +453,6 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
     wu.freeze_panes = wu.cell(zaciatok, 1)
     wu.auto_filter.ref = f"A{zaciatok - 2}:O{wu.max_row}"
 
-    # ======================= Slovník pojmov =======================
     wsl = wb.create_sheet("Slovník pojmov")
     sirky(wsl, [30, 100])
     bunka(wsl, "A1", "Slovník pojmov – čo znamenajú skratky", F_PODNADPIS)
@@ -549,7 +524,6 @@ def exportuj(cesta: Path, s: Statistiky, info: dict) -> Path:
         wsl.row_dimensions[r].height = 30
         r += 1
 
-    # poradie hárkov
     poradie = ["Prehľad", "Výsledky metód", "Podľa veľkosti", "Podľa typu úlohy", "Rozdelenie odchýlky",
                "Údaje (vzorka)", "Slovník pojmov", "Podklady"]
     wb._sheets = [wb[n] for n in poradie]

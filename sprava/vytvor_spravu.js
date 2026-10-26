@@ -1,5 +1,3 @@
-// Vytvorí krátku správu sprava/sprava.docx zo záverov simulácie (čísla podľa vysledky/suhrn.md, beh hlavny100k).
-// Spustenie: node sprava/vytvor_spravu.js   (potrebuje npm balík docx; ak nie je lokálne, nastav NODE_PATH)
 const fs = require("fs");
 const path = require("path");
 const {
@@ -8,10 +6,9 @@ const {
 } = require("docx");
 
 const KOREN = path.join(__dirname, "..");
-const SIRKA = 9638; // šírka textu A4 pri okrajoch 2 cm (DXA)
+const SIRKA = 9638;
 const FONT = "Calibri";
 
-// ---------- pomocné funkcie ----------
 const p = (text, opt = {}) => new Paragraph({
   spacing: { after: 120, line: 276 }, alignment: AlignmentType.JUSTIFIED, ...opt,
   children: (Array.isArray(text) ? text : [text]).map(t => typeof t === "string" ? new TextRun(t) : t),
@@ -64,7 +61,6 @@ function graf(subor, text) {
   ];
 }
 
-// ---------- obsah ----------
 const obsah = [
   new Paragraph({
     alignment: AlignmentType.CENTER, spacing: { after: 80 },

@@ -1,10 +1,3 @@
-"""Zabalí program do jedného zipu na prenesenie na iný počítač (Windows x64/ARM, macOS, Linux).
-
-Spustenie:  python zabal.py   →  export/DopravnaUloha.zip
-
-V zipe je jeden priečinok DopravnaUloha/ s programom, spúšťačmi, README a výsledkami hlavného behu
-(bez .venv – to si spúšťač vytvorí na cieľovom počítači pre jeho procesor – a bez veľkých CSV).
-"""
 from __future__ import annotations
 
 import time
@@ -17,21 +10,21 @@ NAZOV = "DopravnaUloha"
 PROGRAM = ["aplikacia.py", "metody.py", "generator.py", "simulacia.py", "statistiky.py", "export_excel.py",
            "analyza.py", "test_metody.py", "spusti.py",
            "aplikacia.bat", "aplikacia.command", "spusti.bat", "requirements.txt", "README.md"]
-VYSLEDKY = {  # zdroj v projekte -> cesta v zipe
+VYSLEDKY = {
     "vysledky/suhrn.md": "vysledky/suhrn.md",
     "vysledky/hlavny100k.xlsx": "vysledky/hlavny100k.xlsx",
     "vysledky/beh_hlavny100k.json": "vysledky/beh_hlavny100k.json",
     "sprava/sprava.docx": "vysledky/sprava.docx",
 }
-SPUSTITELNE = {"aplikacia.command"}   # na macOS/Linuxe musia mať právo na spustenie
+SPUSTITELNE = {"aplikacia.command"}
 
 
 def pridaj(zf: zipfile.ZipFile, zdroj: Path, ciel: str):
     info = zipfile.ZipInfo(f"{NAZOV}/{ciel}", date_time=time.localtime(zdroj.stat().st_mtime)[:6])
     info.compress_type = zipfile.ZIP_DEFLATED
     prava = 0o755 if Path(ciel).name in SPUSTITELNE else 0o644
-    info.external_attr = (0o100000 | prava) << 16   # bežný súbor + unixové práva
-    info.create_system = 3                           # „vytvorené v Unixe“ → práva sa zachovajú
+    info.external_attr = (0o100000 | prava) << 16
+    info.create_system = 3
     zf.writestr(info, zdroj.read_bytes())
 
 

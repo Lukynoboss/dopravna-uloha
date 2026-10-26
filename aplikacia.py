@@ -1,12 +1,3 @@
-"""Grafické rozhranie projektu – simulácia metód SZR, IM a VAM s priebežnými výsledkami.
-
-Spustenie: Windows (aj ARM) – dvojklik na aplikacia.bat; macOS / Linux – aplikacia.command.
-Pri prvom spustení si spúšťač sám vytvorí prostredie .venv a nainštaluje knižnice (requirements.txt).
-Ručne: python aplikacia.py
-
-Výpočet beží v samostatných procesoch (ProcessPoolExecutor), okno sa medzitým priebežne
-prekresľuje. Počet úloh môže byť ľubovoľný – úlohy sa zadávajú po blokoch, takže pamäť nerastie.
-"""
 from __future__ import annotations
 
 import csv
@@ -27,22 +18,21 @@ from tkinter import filedialog, messagebox, ttk
 import matplotlib
 
 matplotlib.use("TkAgg")
-import matplotlib.ticker  # noqa: E402
-import numpy as np  # noqa: E402
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg  # noqa: E402
-from matplotlib.figure import Figure  # noqa: E402
+import matplotlib.ticker
+import numpy as np
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 
-import generator  # noqa: E402
-import metody  # noqa: E402
-import simulacia  # noqa: E402
-from statistiky import HIST_HRANY, Statistiky  # noqa: E402
+import generator
+import metody
+import simulacia
+from statistiky import HIST_HRANY, Statistiky
 
 KOREN = Path(__file__).resolve().parent
 METODY = list(metody.METODY)
 FARBY = {"SZR": "#2b7bd6", "IM": "#ee6a2c", "VAM": "#1fae7a"}
 POPIS_METOD = {"SZR": "severozápadný roh", "IM": "indexová metóda", "VAM": "Vogelova metóda"}
 
-# písmo podľa systému (Segoe UI je len vo Windows)
 if sys.platform == "win32":
     PISMO, PISMO_TUCNE, MONO = "Segoe UI", "Segoe UI Semibold", "Consolas"
 elif sys.platform == "darwin":
@@ -58,7 +48,6 @@ def pismo(velkost: int, tucne: bool = False) -> tuple:
 
 
 def otvor(cesta) -> None:
-    """Otvorí súbor alebo priečinok v predvolenom programe (Windows, macOS aj Linux)."""
     cesta = str(cesta)
     if sys.platform == "win32":
         os.startfile(cesta)
@@ -68,7 +57,6 @@ def otvor(cesta) -> None:
         subprocess.Popen(["xdg-open", cesta])
 
 
-# farby rozhrania
 POZADIE = "#f4f6f9"
 KARTA = "#ffffff"
 TMAVA = "#1f2a3a"
@@ -79,10 +67,7 @@ CERVENA = "#d64545"
 OKRAJ = "#dde3ea"
 
 
-
-# ---------------------------------------------------------------- pomocné funkcie
 def cislo(x: float, des: int = 0) -> str:
-    """Slovenský zápis čísla: medzera ako oddeľovač tisícov, desatinná čiarka."""
     s = f"{x:,.{des}f}".replace(",", " ").replace(".", ",")
     return s
 
@@ -107,16 +92,13 @@ def nacitaj_cele(text: str, nazov: str, od: int | None = None, do: int | None = 
     return x
 
 
-# ---------------------------------------------------------------- výpočet na pozadí
 def beh_na_pozadi(pocet: int, procesy: int, seed: int, p: dict, blok: int,
                   fronta: queue.Queue, stop: threading.Event):
-    """Vlákno: zadáva bloky úloh procesom a výsledky posiela do fronty pre okno."""
     try:
         with ProcessPoolExecutor(max_workers=procesy) as ex:
             dalsi = 0
             bezi = set()
             while (dalsi < pocet or bezi) and not stop.is_set():
-                # v rade je len pár blokov na proces → aj pri obrovskom počte úloh malá pamäť
                 while dalsi < pocet and len(bezi) < procesy * 3:
                     ids = list(range(dalsi, min(dalsi + blok, pocet)))
                     dalsi += len(ids)
@@ -127,12 +109,11 @@ def beh_na_pozadi(pocet: int, procesy: int, seed: int, p: dict, blok: int,
             for f in bezi:
                 f.cancel()
             ex.shutdown(wait=True, cancel_futures=True)
-    except Exception as e:  # noqa: BLE001 – chybu ukážeme v okne
+    except Exception as e:
         fronta.put(("chyba", f"{type(e).__name__}: {e}"))
     fronta.put(("koniec", stop.is_set()))
 
 
-# ---------------------------------------------------------------- okno
 class Aplikacia(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -171,12 +152,10 @@ class Aplikacia(tk.Tk):
         self._tab_ukazka()
 
         self.protocol("WM_DELETE_WINDOW", self._zatvor)
-        # pri spustení cez pythonw nie je konzola → chyby ukážeme v okne
         self.report_callback_exception = lambda typ, chyba, tb: messagebox.showerror(
             "Neočakávaná chyba", f"{typ.__name__}: {chyba}", parent=self)
         self.after(150, self._citaj_frontu)
 
-    # ---------------- vzhľad
     def _styly(self):
         st = ttk.Style(self)
         st.theme_use("clam")
@@ -229,7 +208,6 @@ class Aplikacia(tk.Tk):
             tk.Label(h, text=f"● {m} – {POPIS_METOD[m]}", bg=TMAVA, fg=FARBY[m],
                      font=pismo(10)).pack(side="right", padx=10)
 
-    # ---------------- záložka Simulácia
     def _tab_simulacia(self):
         lavy = ttk.Frame(self.tab_sim, style="Pozadie.TFrame", width=330)
         lavy.pack(side="left", fill="y", padx=(0, 12), pady=10)
@@ -247,7 +225,6 @@ class Aplikacia(tk.Tk):
             "ulozit": tk.BooleanVar(value=False), "nazov": tk.StringVar(value=""),
         }
 
-        # počet úloh
         k = self._karta(lavy, "Koľko úloh vypočítať", fill="x", pady=(0, 8))
         e = ttk.Entry(k, textvariable=self.v["pocet"], font=pismo(16, True), width=14, justify="right")
         e.pack(fill="x")
@@ -261,7 +238,6 @@ class Aplikacia(tk.Tk):
         self.v["pocet"].trace_add("write", lambda *_: self._odhad())
         self.v["procesy"].trace_add("write", lambda *_: self._odhad())
 
-        # tlačidlá
         tl = ttk.Frame(lavy, style="Pozadie.TFrame")
         tl.pack(fill="x", pady=(0, 6))
         self.btn_start = ttk.Button(tl, text="▶  Spustiť", style="Akcent.TButton", command=self._spusti)
@@ -279,7 +255,6 @@ class Aplikacia(tk.Tk):
         ttk.Button(tl2, text="Otvoriť výsledky", command=lambda: otvor(simulacia.PRIECINOK)
                    if simulacia.PRIECINOK.exists() else None).pack(side="left", fill="x", expand=True)
 
-        # výpočet
         k = self._karta(lavy, "Výpočet", fill="x", pady=(0, 8))
         self._riadok(k, "Procesy (jadrá)", ttk.Spinbox(k, from_=1, to=max(64, os.cpu_count() or 1),
                                                        textvariable=self.v["procesy"], width=6))
@@ -289,7 +264,6 @@ class Aplikacia(tk.Tk):
                    command=lambda: self.v["seed"].set(str(random.randint(1, 99_999_999)))).pack(side="left", padx=4)
         self._riadok(k, "Seed", seed_ram)
 
-        # parametre úloh
         k = self._karta(lavy, "Náhodné úlohy", fill="x", pady=(0, 8))
         self._riadok(k, "Dodávatelia m", self._od_do(k, "m_od", "m_do"))
         self._riadok(k, "Odberatelia n", self._od_do(k, "n_od", "n_do"))
@@ -311,14 +285,12 @@ class Aplikacia(tk.Tk):
             self.v[kluc].trace_add("write", lambda *_: self._dopyt())
         self._dopyt()
 
-        # uloženie
         k = self._karta(lavy, "Uloženie", fill="x", pady=(0, 8))
         ttk.Checkbutton(k, text="Uložiť výsledky do CSV (vysledky/)", variable=self.v["ulozit"],
                         style="Karta.TCheckbutton").pack(anchor="w")
         self._riadok(k, "Názov behu", ttk.Entry(k, textvariable=self.v["nazov"], width=16))
         ttk.Label(k, text="prázdny = vytvorí sa automaticky", style="Sivy.TLabel").pack(anchor="w")
 
-        # ---- pravá strana: stav
         k = self._karta(pravy, None, fill="x", pady=(0, 10))
         hore = ttk.Frame(k, style="Karta.TFrame")
         hore.pack(fill="x")
@@ -340,7 +312,6 @@ class Aplikacia(tk.Tk):
             ttk.Label(ram, text=nazov, style="Sivy.TLabel").pack(anchor="w")
             self.dlazdice[kluc] = lbl
 
-        # tabuľka metód
         k = self._karta(pravy, "Priebežné výsledky metód", fill="x", pady=(0, 10))
         stlpce = ("metoda", "optimum", "odchylka", "kroky", "najlepsia", "cas")
         nazvy = ("metóda", "trafila optimum", "priemerná odchýlka od optima", "kroky MODI (priemer)",
@@ -355,7 +326,6 @@ class Aplikacia(tk.Tk):
             self.tabulka.tag_configure(m, foreground=FARBY[m])
         self.tabulka.pack(fill="x")
 
-        # grafy
         k = self._karta(pravy, None, fill="both", expand=True)
         self.fig = Figure(figsize=(10, 5.4), dpi=100, facecolor=KARTA)
         self.ax = [self.fig.add_subplot(2, 2, i + 1) for i in range(4)]
@@ -370,7 +340,7 @@ class Aplikacia(tk.Tk):
         ram.pack(fill="x", pady=2)
         ttk.Label(ram, text=text, style="Karta.TLabel").pack(side="left")
         widget.pack(in_=ram, side="right")
-        widget.lift(ram)   # widget vznikol skôr než rám → inak by bol schovaný za ním
+        widget.lift(ram)
 
     def _od_do(self, rodic, k_od: str, k_do: str):
         ram = ttk.Frame(rodic, style="Karta.TFrame")
@@ -388,7 +358,6 @@ class Aplikacia(tk.Tk):
             self.lbl_dopyt.config(text="")
 
     def _odhad(self):
-        """Hrubý odhad času podľa merania (~80 s na 100 000 úloh pri 16 procesoch, veľkosti 3–20)."""
         try:
             n = nacitaj_cele(self.v["pocet"].get(), "počet", 1)
             pr = max(1, nacitaj_cele(self.v["procesy"].get(), "procesy", 1))
@@ -399,7 +368,6 @@ class Aplikacia(tk.Tk):
         mb = n * 3 * 80 / 1e6
         self.lbl_odhad.config(text=f"odhad: ~{cas_text(sekundy)}  ·  CSV by malo ~{cislo(mb, 0 if mb >= 10 else 1)} MB")
 
-    # ---------------- spustenie / zastavenie
     def _nastavenia(self):
         v = self.v
         pocet = nacitaj_cele(v["pocet"].get(), "Počet úloh", 1)
@@ -505,7 +473,6 @@ class Aplikacia(tk.Tk):
         if self.zatvarat:
             self.destroy()
 
-    # ---------------- čítanie výsledkov
     def _citaj_frontu(self):
         koniec = None
         t = time.perf_counter()
@@ -557,7 +524,6 @@ class Aplikacia(tk.Tk):
                            f"{cislo(100 * s.najlepsia[m] / s.hotovo, 1)} %", f"{cislo(cas / k / 1e6, 2)} ms")
             self.tabulka.item(m, values=(f"{m} – {POPIS_METOD[m]}", *hodnoty))
 
-    # ---------------- grafy
     def _kresli(self):
         self.posledne_kreslenie = time.perf_counter()
         s = self.stat
@@ -630,7 +596,6 @@ class Aplikacia(tk.Tk):
                        color="#a7b0bc", fontsize=10)
         self.canvas.draw_idle()
 
-    # ---------------- export do Excelu
     def _export_excel(self):
         if not self.stat.hotovo:
             return
@@ -654,7 +619,7 @@ class Aplikacia(tk.Tk):
                 import export_excel
                 export_excel.exportuj(Path(cesta), stat, info)
                 self.after(0, lambda: hotovo(None))
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 self.after(0, lambda: hotovo(f"{type(e).__name__}: {e}"))
 
         def hotovo(chyba):
@@ -671,7 +636,6 @@ class Aplikacia(tk.Tk):
 
         threading.Thread(target=praca, daemon=True).start()
 
-    # ---------------- vyhodnotenie uloženého behu
     def _vyhodnot(self):
         if not self.posledny_beh:
             return
@@ -688,7 +652,6 @@ class Aplikacia(tk.Tk):
         if priecinok.exists():
             otvor(priecinok)
 
-    # ---------------- záložka Ukážka
     def _tab_ukazka(self):
         k = self._karta(self.tab_uk, None, fill="x", pady=10)
         self.uk = {"m": tk.StringVar(value="4"), "n": tk.StringVar(value="5"),
@@ -791,7 +754,6 @@ class Aplikacia(tk.Tk):
                             f"{cislo(t_met):>10} µs{cislo(t_modi):>9} µs\n")
         t.configure(state="disabled")
 
-    # ---------------- zatvorenie okna
     def _zatvor(self):
         if self.bezi:
             if not messagebox.askyesno("Výpočet beží", "Výpočet ešte beží. Zastaviť ho a zavrieť okno?", parent=self):
@@ -804,10 +766,10 @@ class Aplikacia(tk.Tk):
 
 def main():
     if sys.platform == "win32":
-        try:  # ostré písmo na monitoroch so zväčšením
+        try:
             import ctypes
             ctypes.windll.shcore.SetProcessDpiAwareness(1)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     os.chdir(KOREN)
     app = Aplikacia()

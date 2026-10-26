@@ -1,8 +1,4 @@
 #!/bin/bash
-# Dopravná úloha – spustenie okna aplikácie na macOS (Intel aj Apple Silicon / ARM) a Linuxe.
-# macOS: dvojklik na tento súbor (prvýkrát pravým tlačidlom → Otvoriť).
-# Linux: v termináli  bash aplikacia.command
-# Pri prvom spustení vytvorí prostredie .venv a nainštaluje knižnice.
 cd "$(dirname "$0")" || exit 1
 
 if [ ! -x .venv/bin/python ]; then
@@ -30,7 +26,6 @@ if [ ! -x .venv/bin/python ]; then
         read -r -p "Stlač Enter..."
         exit 1
     fi
-    # scipy je potrebné len na podrobné vyhodnotenie a test metód – aplikácia funguje aj bez neho
     .venv/bin/python -m pip install scipy || echo "Upozornenie: scipy sa nenainštaloval, tlačidlo Vyhodnotiť nebude fungovať."
 fi
 

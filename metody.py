@@ -1,15 +1,3 @@
-"""Dopravná úloha – metódy východiskového riešenia a MODI.
-
-Podľa prednášky L5LZV 5-6 (D. Hrabec, FLKŘ):
-  - metóda severozápadného rohu (SZR)
-  - indexová metóda (IM)
-  - Vogelova aproximačná metóda (VAM)
-  - test optimality (potenciály u, v) a presun po Dantzigovom obvode (MODI)
-
-Všetky výpočty sú v celých číslach (numpy int64), aby test optimality bol presný.
-Báza má vždy m + n - 1 polí – pri degenerácii obsahuje aj polia s nulovou prepravou
-(ε z prednášky).
-"""
 from __future__ import annotations
 
 from collections import deque
@@ -20,19 +8,18 @@ import numpy as np
 
 @dataclass
 class Uloha:
-    """Vyrovnaná dopravná úloha. `fiktivny` hovorí, či sa pridal riadok/stĺpec."""
-    C: np.ndarray            # matica jednotkových nákladov m × n
-    a: np.ndarray            # kapacity dodávateľov (m)
-    b: np.ndarray            # požiadavky odberateľov (n)
-    fiktivny: str | None = None   # None, "odberatel" alebo "dodavatel"
+    C: np.ndarray
+    a: np.ndarray
+    b: np.ndarray
+    fiktivny: str | None = None
 
 
 @dataclass
 class Riesenie:
-    X: np.ndarray                    # prepravný plán m × n
-    baza: list[tuple[int, int]]      # bázické polia (m + n - 1)
-    z: int                           # hodnota účelovej funkcie
-    kroky_modi: int = 0              # počet presunov po Dantzigovom obvode
+    X: np.ndarray
+    baza: list[tuple[int, int]]
+    z: int
+    kroky_modi: int = 0
     postup: list[str] = field(default_factory=list)
 
 
@@ -40,16 +27,7 @@ def naklady(C: np.ndarray, X: np.ndarray) -> int:
     return int((C * X).sum())
 
 
-# ---------------------------------------------------------------------------
-# Vyváženie úlohy
-# ---------------------------------------------------------------------------
-
 def vyvaz(C, a, b, penale_odb=None, penale_dod=None) -> Uloha:
-    """Prevedie úlohu na vyrovnanú pridaním fiktívneho účastníka.
-
-    penale_odb – náklady na nevyužitú kapacitu (stĺpec fiktívneho odberateľa), predvolene 0
-    penale_dod – penalizácia za neuspokojený dopyt (riadok fiktívneho dodávateľa), predvolene 0
-    """
     C = np.asarray(C, dtype=np.int64)
     a = np.asarray(a, dtype=np.int64)
     b = np.asarray(b, dtype=np.int64)
@@ -63,17 +41,7 @@ def vyvaz(C, a, b, penale_odb=None, penale_dod=None) -> Uloha:
     return Uloha(C, a, b)
 
 
-# ---------------------------------------------------------------------------
-# Spoločná kostra východiskových metód
-# ---------------------------------------------------------------------------
-
 def _obsadzuj(u: Uloha, vyber_pole) -> Riesenie:
-    """Opakuje: vyber pole → obsaď min(a_i, b_j) → vyškrtni riadok alebo stĺpec.
-
-    V každom kroku sa vyškrtne práve jedna rada (pri súčasnom vyčerpaní kapacity
-    aj požiadavky sa vyškrtne len riadok, stĺpec zostane s nulou). Tak vznikne
-    presne m + n - 1 bázických polí aj pri degenerácii.
-    """
     m, n = u.C.shape
     zost_a, zost_b = u.a.copy(), u.b.copy()
     riadky, stlpce = np.ones(m, bool), np.ones(n, bool)
@@ -100,14 +68,12 @@ def _szr_pole(C, riadky, stlpce):
 
 
 def _im_pole(C, riadky, stlpce):
-    # najlacnejšie neškrtnuté pole; pri zhode podľa poradia riadkov a stĺpcov
     maska = np.where(riadky[:, None] & stlpce[None, :], C, np.iinfo(np.int64).max)
     k = int(np.argmin(maska))
     return divmod(k, C.shape[1])
 
 
 def _diferencie(M):
-    """Rozdiel dvoch najnižších cien v každom riadku M (pri jednom prvku 0)."""
     if M.shape[1] == 1:
         return np.zeros(M.shape[0], dtype=np.int64), M[:, 0]
     s = np.partition(M, 1, axis=1)
@@ -119,7 +85,6 @@ def _vam_pole(C, riadky, stlpce):
     S = C[np.ix_(ri, sj)]
     dr, minr = _diferencie(S)
     ds, mins = _diferencie(S.T)
-    # rada s najväčšou diferenciou; pri zhode tá s lacnejším poľom, potom riadky pred stĺpcami
     kandidati = [(-dr[k], minr[k], 0, k) for k in range(len(ri))]
     kandidati += [(-ds[k], mins[k], 1, k) for k in range(len(sj))]
     _, _, typ, k = min(kandidati)
@@ -129,29 +94,21 @@ def _vam_pole(C, riadky, stlpce):
 
 
 def szr(u: Uloha) -> Riesenie:
-    """Metóda severozápadného rohu."""
     return _obsadzuj(u, _szr_pole)
 
 
 def indexova(u: Uloha) -> Riesenie:
-    """Indexová metóda (metóda minimálnych nákladov)."""
     return _obsadzuj(u, _im_pole)
 
 
 def vam(u: Uloha) -> Riesenie:
-    """Vogelova aproximačná metóda."""
     return _obsadzuj(u, _vam_pole)
 
 
 METODY = {"SZR": szr, "IM": indexova, "VAM": vam}
 
 
-# ---------------------------------------------------------------------------
-# Test optimality a MODI
-# ---------------------------------------------------------------------------
-
 def potencialy(C, baza):
-    """u_i + v_j = c_ij pre bázické polia, u_1 = 0."""
     m, n = C.shape
     u = np.full(m, np.iinfo(np.int64).min)
     v = np.full(n, np.iinfo(np.int64).min)
@@ -161,7 +118,7 @@ def potencialy(C, baza):
         susedia_r[i].append(j)
         susedia_s[j].append(i)
     u[0] = 0
-    fronta = deque([(0, 0)])          # (typ 0 = riadok / 1 = stĺpec, index)
+    fronta = deque([(0, 0)])
     while fronta:
         typ, k = fronta.popleft()
         if typ == 0:
@@ -183,7 +140,6 @@ def je_optimalne(C, baza) -> bool:
 
 
 def _obvod(baza, m, i0, j0):
-    """Dantzigov obvod: cesta v strome bázy z riadku i0 do stĺpca j0."""
     susedia = {}
     for (i, j) in baza:
         susedia.setdefault(("r", i), []).append((("s", j), (i, j)))
@@ -204,12 +160,11 @@ def _obvod(baza, m, i0, j0):
     while odkial[uzol] is not None:
         uzol, pole = odkial[uzol]
         cesta.append(pole)
-    cesta.reverse()            # od riadku i0 po stĺpec j0
-    return cesta               # znamienka na ceste: −, +, −, ..., −
+    cesta.reverse()
+    return cesta
 
 
 def modi(u: Uloha, start: Riesenie, max_krokov: int = 10_000, zapisuj: bool = False) -> Riesenie:
-    """Od východiskového riešenia k optimu (test optimality + Dantzigov obvod)."""
     C = u.C
     m, n = C.shape
     X = start.X.copy()
@@ -217,7 +172,7 @@ def modi(u: Uloha, start: Riesenie, max_krokov: int = 10_000, zapisuj: bool = Fa
     postup = []
     for krok in range(max_krokov + 1):
         up, vp = potencialy(C, baza)
-        delta = up[:, None] + vp[None, :] - C          # kladné = dá sa zlepšiť
+        delta = up[:, None] + vp[None, :] - C
         for (i, j) in baza:
             delta[i, j] = 0
         k = int(np.argmax(delta))

@@ -1,13 +1,3 @@
-"""Vyhodnotenie behu simulácie dopravnej úlohy (fáza F3).
-
-Použitie:
-    .venv\\Scripts\\python.exe analyza.py [cesta_k_csv | nazov_behu]
-
-Príklady:  analyza.py hlavny100k   |   analyza.py vysledky\\beh_hlavny100k.csv
-Výstup:    vysledky/suhrn.md (pri inom behe ako hlavný: vysledky/suhrn_<nazov>.md
-           a grafy/<nazov>/) a grafy PNG v grafy/.
-Každé číslo v súhrne sa počíta tu z CSV – nič sa nepíše ručne.
-"""
 import csv
 import json
 import os
@@ -19,21 +9,18 @@ from scipy import stats
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
 KOREN = os.path.dirname(os.path.abspath(__file__))
 METODY = ["SZR", "IM", "VAM"]
-# rovnaké farby metód vo všetkých grafoch
 FARBY = {"SZR": "#2a78d6", "IM": "#eb6834", "VAM": "#1baf7a"}
 TYPY = ["vyrovnana", "prebytok_ponuky", "prebytok_dopytu"]
 TYPY_POPIS = {"vyrovnana": "vyrovnaná", "prebytok_ponuky": "prebytok ponuky",
               "prebytok_dopytu": "prebytok dopytu"}
-# skupiny veľkosti podľa m·n (dolná a horná hranica vrátane)
 SKUPINY_MN = [(9, 49), (50, 99), (100, 149), (150, 249), (250, 400)]
 Z95 = 1.959963984540054
 
 
-# ---------------------------------------------------------------- načítanie
 def najdi_subory(arg):
     if arg is None:
         arg = "hlavny100k"
@@ -51,7 +38,6 @@ def najdi_subory(arg):
 
 
 def nacitaj(csv_cesta):
-    """Načíta CSV do polí tvaru (pocet_uloh, 3) – stĺpec = metóda SZR, IM, VAM."""
     stl = {k: [] for k in ["id", "m", "n", "typ", "cena_max", "fiktivny", "metoda",
                            "degeneracia", "z", "z_opt", "odchylka_pct", "optimum",
                            "cas_metody_ns", "cas_modi_ns", "kroky_modi"]}
@@ -86,8 +72,8 @@ def nacitaj(csv_cesta):
         "z_opt": pole("z_opt", np.int64),
         "odch": pole("odchylka_pct", np.float64),
         "opt": pole("optimum", np.int64).astype(bool),
-        "t_met": pole("cas_metody_ns", np.float64) / 1000.0,   # µs
-        "t_modi": pole("cas_modi_ns", np.float64) / 1000.0,    # µs
+        "t_met": pole("cas_metody_ns", np.float64) / 1000.0,
+        "t_modi": pole("cas_modi_ns", np.float64) / 1000.0,
         "kroky": pole("kroky_modi", np.int64),
     }
     d["t_spolu"] = d["t_met"] + d["t_modi"]
@@ -95,7 +81,6 @@ def nacitaj(csv_cesta):
     return d
 
 
-# ---------------------------------------------------------------- štatistika
 def priemer_ci(x):
     x = np.asarray(x, dtype=float)
     if len(x) < 2:
@@ -106,7 +91,6 @@ def priemer_ci(x):
 
 
 def podiel_ci(k, n):
-    """Wilsonov 95 % interval pre podiel (v %)."""
     if n == 0:
         return np.nan, np.nan, np.nan
     p = k / n
@@ -117,7 +101,6 @@ def podiel_ci(k, n):
 
 
 def kvantil_ci(x, q):
-    """Kvantil a neparametrický 95 % interval z poradových štatistík (binomické rozdelenie)."""
     xs = np.sort(np.asarray(x, dtype=float))
     n = len(xs)
     hodnota = float(np.quantile(xs, q))
@@ -129,11 +112,9 @@ def kvantil_ci(x, q):
 
 
 def poradia(z):
-    """Poradie metód v úlohe so spoločným miestom pri remíze (1 + počet ostro lepších)."""
     return 1 + (z[:, None, :] < z[:, :, None]).sum(axis=2)
 
 
-# ---------------------------------------------------------------- formát
 def f(x, des=2):
     if x is None or (isinstance(x, float) and np.isnan(x)):
         return "–"
@@ -157,7 +138,6 @@ def p_text(p):
     return "< 1e-300" if p == 0 else f"{p:.2e}".replace(".", ",")
 
 
-# ---------------------------------------------------------------- grafy
 def styl_osi(ax):
     ax.grid(True, color="#e3e2de", linewidth=0.8)
     ax.set_axisbelow(True)
@@ -233,7 +213,6 @@ def vsetky_grafy(d, adr):
                "Čas samotnej východiskovej metódy podľa veľkosti úlohy",
                cesta("cas_metody_vs_velkost.png"), logy=True)
 
-    # boxplot odchýlok
     fig, axy = plt.subplots(1, 2, figsize=(10, 5), gridspec_kw={"width_ratios": [3, 2]})
     for ax, mets, tit in [(axy[0], METODY, "všetky metódy"), (axy[1], ["IM", "VAM"], "detail IM a VAM")]:
         styl_osi(ax)
@@ -251,7 +230,6 @@ def vsetky_grafy(d, adr):
     fig.savefig(cesta("boxplot_odchylok.png"), dpi=150)
     plt.close(fig)
 
-    # empirická distribučná funkcia odchýlky
     fig, ax = plt.subplots(figsize=(8, 5))
     styl_osi(ax)
     for j, met in enumerate(METODY):
@@ -269,7 +247,6 @@ def vsetky_grafy(d, adr):
     fig.savefig(cesta("ecdf_odchylky.png"), dpi=150)
     plt.close(fig)
 
-    # poradie metód
     por = poradia(d["z"])
     fig, ax = plt.subplots(figsize=(8, 4.5))
     styl_osi(ax)
@@ -293,7 +270,6 @@ def vsetky_grafy(d, adr):
     fig.savefig(cesta("poradie_metod.png"), dpi=150)
     plt.close(fig)
 
-    # odchýlka podľa typu a cenového rozsahu
     skupiny = [(t, c) for c in (20, 100) for t in TYPY]
     fig, ax = plt.subplots(figsize=(10, 5))
     styl_osi(ax)
@@ -318,7 +294,6 @@ def vsetky_grafy(d, adr):
     return subory
 
 
-# ---------------------------------------------------------------- súhrn
 def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
     N = len(d["id"])
     L = []
@@ -327,7 +302,6 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
     L.append("Vygenerované skriptom `analyza.py` z CSV; všetky čísla sú dopočítateľné spustením "
              f"`.venv\\Scripts\\python.exe analyza.py {nazov}`.\n")
 
-    # --- parametre behu
     L.append("## Parametre behu\n")
     pg = param.get("parametre_generatora", {})
     riadky = [
@@ -352,7 +326,6 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
              "interval spoľahlivosti (priemer: normálna aproximácia; podiel: Wilson; medián a kvartily: "
              "neparametrický z poradových štatistík).\n")
 
-    # --- kontrola konzistencie
     zopt_zhoda = bool(np.all(d["z_opt"] == d["z_opt"][:, :1]))
     z_ge = bool(np.all(d["z"] >= d["z_opt"]))
     opt_zhoda = bool(np.all(d["opt"] == (d["z"] == d["z_opt"])))
@@ -360,7 +333,6 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
              f"z ≥ z* všade: **{'áno' if z_ge else 'NIE'}**; stĺpec `optimum` = (z = z*): "
              f"**{'áno' if opt_zhoda else 'NIE'}**.\n")
 
-    # --- celkové porovnanie – správnosť
     L.append("## 1. Celkové porovnanie – správnosť\n")
     r = []
     for j, met in enumerate(METODY):
@@ -375,7 +347,6 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
     L.append(tabulka(["metóda", "trafila optimum (%)", "priemer odchýlky (%)", "medián (%)",
                       "1. kvartil (%)", "3. kvartil (%)", "max (%)"], r) + "\n")
 
-    # --- efektívnosť
     L.append("## 2. Celkové porovnanie – efektívnosť\n")
     r = []
     for j, met in enumerate(METODY):
@@ -388,7 +359,6 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
     L.append(tabulka(["metóda", "kroky MODI – priemer", "kroky MODI – medián",
                       "čas metódy (µs) priemer / medián", "čas MODI (µs) priemer / medián",
                       "celkový čas (µs) priemer / medián"], r) + "\n")
-    # najrýchlejšia celkovo v úlohe
     najr = np.argmin(d["t_spolu"], axis=1)
     najk = d["kroky"] == d["kroky"].min(axis=1, keepdims=True)
     L.append(tabulka(["metóda", "najkratší celkový čas v úlohe (%)", "najmenej krokov MODI v úlohe, vrátane remíz (%)",
@@ -396,7 +366,6 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
                      [[met, f(100 * np.mean(najr == j)), f(100 * np.mean(najk[:, j])),
                        f(100 * np.mean(np.argmin(d['t_met'], axis=1) == j))] for j, met in enumerate(METODY)]) + "\n")
 
-    # --- párové porovnanie
     L.append("## 3. Párové porovnanie na tej istej úlohe\n")
     por = poradia(d["z"])
     r = []
@@ -424,7 +393,6 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
                   p_text(test.pvalue)])
     L.append(tabulka(["dvojica A vs B", "A lepšia (%)", "remíza (%)", "B lepšia (%)",
                       "priemer rozdielu odchýlky A − B (p. b.)", "medián rozdielu (p. b.)", "p-hodnota"], r) + "\n")
-    # párové aj pre kroky MODI a celkový čas VAM vs IM
     r = []
     for meno, x in [("kroky MODI", d["kroky"].astype(float)), ("celkový čas (µs)", d["t_spolu"]),
                     ("čas metódy (µs)", d["t_met"])]:
@@ -436,7 +404,6 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
     L.append(tabulka(["veličina", "VAM menej (%)", "rovnako (%)", "IM menej (%)", "priemer rozdielu VAM − IM",
                       "medián rozdielu", "p-hodnota (Wilcoxon)"], r) + "\n")
 
-    # --- rozdelenia
     def blok_skupin(titul, popis_sk, masky):
         L.append(f"### {titul}\n")
         r = []
@@ -485,7 +452,6 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
     L.append("Pozn.: degenerácia súvisí s veľkosťou a typom úlohy (napr. ceny 1–20 → viac remíz), "
              "takže rozdiely v tejto tabuľke nie sú čistým účinkom degenerácie.\n")
 
-    # --- grafy
     L.append("## 5. Grafy\n")
     popisy = {
         "odchylka_vs_velkost.png": "Priemerná odchýlka od optima vs. veľkosť m·n",
@@ -505,7 +471,6 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
     for g in grafy:
         L.append(f"![{popisy.get(os.path.basename(g), '')}]({rel(g)})\n")
 
-    # --- záver (generovaný z čísel)
     L.append("## 6. Záver\n")
     pr_odch = d["odch"].mean(axis=0)
     med_odch = np.median(d["odch"], axis=0)
@@ -540,7 +505,6 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
     L.append(f"- **Celkovo:** VAM je jednoznačne najsprávnejšia a potrebuje najmenej krokov MODI; v celkovom "
              f"čase je {METODY[je]} {'mierne ' if abs(tsp[2] - tsp[1]) / tsp[1] < 0.15 else ''}vpredu. "
              "SZR je vo všetkých podmienkach výrazne najhoršia.")
-    # podmienky – podľa veľkosti
     mal = (d["mn"] <= 49)
     vel = (d["mn"] >= 250)
     L.append(f"- **Vplyv veľkosti:** pri malých úlohách (m·n ≤ 49) trafí VAM optimum v "
@@ -548,7 +512,6 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
              f"(m·n ≥ 250) už len v {f(100 * d['opt'][vel, 2].mean())} %; počet krokov MODI rastie s veľkosťou "
              f"pri všetkých metódach (VAM {f(d['kroky'][mal, 2].mean(), 1)} → {f(d['kroky'][vel, 2].mean(), 1)}, "
              f"SZR {f(d['kroky'][mal, 0].mean(), 1)} → {f(d['kroky'][vel, 0].mean(), 1)}).")
-    # najrychlejsia celkovo v malých úlohách?
     tmal = d["t_spolu"][mal].mean(axis=0)
     L.append(f"- Pri malých úlohách (m·n ≤ 49) je priemerný celkový čas SZR / IM / VAM = "
              f"{f(tmal[0], 0)} / {f(tmal[1], 0)} / {f(tmal[2], 0)} µs, pri veľkých (m·n ≥ 250) "

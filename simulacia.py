@@ -1,15 +1,3 @@
-"""Hromadná simulácia: SZR, IM a VAM na rovnakých náhodných úlohách + MODI do optima.
-
-Použitie:
-    .venv\\Scripts\\python.exe simulacia.py --pocet 1000 --seed 20261025 --nazov test1k --procesy 16
-
-Výstup:
-    vysledky/beh_<názov>.csv   – jeden riadok na (úloha, metóda)
-    vysledky/beh_<názov>.json  – seed, parametre, časy, chyby
-
-z* = optimum z MODI (minimum z troch behov MODI; ak sa líšia, ide o chybu a zapíše sa).
-Časy sa merajú vo vnútri procesu cez time.perf_counter_ns().
-"""
 from __future__ import annotations
 
 import argparse
@@ -34,15 +22,10 @@ STLPCE = ["id", "m", "n", "typ", "cena_max", "fiktivny", "metoda", "degeneracia"
 
 
 def _degeneracia(r: metody.Riesenie) -> int:
-    """Počet bázických polí s nulovou prepravou (0 = nedegenerované riešenie)."""
     return sum(1 for p in r.baza if r.X[p] == 0)
 
 
 def spracuj_ulohu(seed: int, id_: int, p: dict | None = None):
-    """Vyrieši jednu úlohu všetkými tromi metódami. Vráti (riadky, chyby).
-
-    `p` = parametre generátora (None = predvolené generator.PARAMETRE).
-    """
     nu = generator.generuj(seed, id_, p or generator.PARAMETRE)
     u = metody.vyvaz(nu.C, nu.a, nu.b)
     zaznamy = []
@@ -71,33 +54,29 @@ def spracuj_ulohu(seed: int, id_: int, p: dict | None = None):
 
 
 def spracuj_blok(seed: int, ids: list[int], p: dict | None = None):
-    """Blok úloh pre jeden proces. Chyba v jednej úlohe nezastaví ostatné."""
     riadky, chyby = [], []
     for id_ in ids:
         try:
             r, ch = spracuj_ulohu(seed, id_, p)
             riadky.extend(r)
             chyby.extend(ch)
-        except Exception as e:  # noqa: BLE001 – chybu zapíšeme a pokračujeme
+        except Exception as e:
             chyby.append({"id": id_, "chyba": f"{type(e).__name__}: {e}"})
     return riadky, chyby
 
 
 class ZivyPriebeh:
-    """Priebežný výpis do terminálu: postup, odhad času a výsledky metód doteraz."""
-
     def __init__(self, pocet: int, procesy: int, zapnuty: bool = True):
         self.pocet, self.procesy, self.zapnuty = pocet, procesy, zapnuty
         self.hotovo = 0
         self.chyby = 0
-        # metóda -> [počet, optimum, súčet odchýlok, súčet krokov MODI, súčet času metódy + MODI (ns)]
         self.stat = {nazov: [0, 0, 0.0, 0, 0] for nazov in metody.METODY}
         self.prvy_najlepsi = {nazov: 0 for nazov in metody.METODY}
         self.t0 = time.perf_counter()
         self.posledny_vypis = 0.0
         self.riadkov_vypisu = 0
         if zapnuty and sys.platform == "win32":
-            os.system("")  # zapne ANSI escape sekvencie vo Windows konzole
+            os.system("")
 
     def pridaj(self, riadky: list, chyby: list):
         self.chyby += len(chyby)
@@ -143,7 +122,6 @@ class ZivyPriebeh:
                 f"{nazov:<7}{100 * opt / k:15.2f} %{odch / k:15.1f} %{kroky / k:12.1f}"
                 f"{100 * self.prvy_najlepsi[nazov] / self.hotovo:10.1f} %{cas / k / 1e6:8.2f} ms"
             )
-        # návrat kurzora na začiatok predchádzajúceho výpisu a prepísanie riadkov
         vystup = (f"\x1b[{self.riadkov_vypisu}F" if self.riadkov_vypisu else "") + \
             "".join(f"\x1b[2K{r}\n" for r in riadky)
         sys.stdout.write(vystup)
@@ -182,7 +160,6 @@ def main(argv: list[str] | None = None):
                 zivo.pridaj(riadky, ch)
         else:
             with ProcessPoolExecutor(max_workers=arg.procesy) as ex:
-                # map zachová poradie blokov → CSV zoradené podľa id
                 for riadky, ch in ex.map(spracuj_blok, [arg.seed] * len(bloky), bloky):
                     w.writerows(riadky)
                     pocet_riadkov += len(riadky)

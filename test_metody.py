@@ -1,7 +1,3 @@
-"""Kontrola metód: príklady z prednášky + náhodné úlohy voči scipy (linprog).
-
-Spustenie:  .venv\\Scripts\\python.exe test_metody.py
-"""
 import numpy as np
 from scipy.optimize import linprog
 
@@ -63,7 +59,7 @@ zle = 0
 for _ in range(2000):
     m, n = rng.integers(2, 9, size=2)
     C = rng.integers(1, 21, size=(m, n))
-    a = rng.integers(1, 6, size=m) * 5        # násobky 5 → častá degenerácia
+    a = rng.integers(1, 6, size=m) * 5
     b = rng.integers(1, 6, size=n) * 5
     u = vyvaz(C, a, b)
     opt = optimum_scipy(u)
