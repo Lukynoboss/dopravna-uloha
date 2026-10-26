@@ -6,6 +6,7 @@ import os
 import platform
 import queue
 import random
+import re
 import subprocess
 import sys
 import threading
@@ -146,9 +147,12 @@ class Aplikacia(tk.Tk):
         zalozky.pack(fill="both", expand=True, padx=14, pady=(8, 14))
         self.tab_sim = ttk.Frame(zalozky, style="Pozadie.TFrame")
         self.tab_uk = ttk.Frame(zalozky, style="Pozadie.TFrame")
+        self.tab_vl = ttk.Frame(zalozky, style="Pozadie.TFrame")
         zalozky.add(self.tab_sim, text="  Simulácia  ")
-        zalozky.add(self.tab_uk, text="  Ukážka jednej úlohy  ")
+        zalozky.add(self.tab_vl, text="  Vlastná úloha  ")
+        zalozky.add(self.tab_uk, text="  Ukážka náhodnej úlohy  ")
         self._tab_simulacia()
+        self._tab_vlastna()
         self._tab_ukazka()
 
         self.protocol("WM_DELETE_WINDOW", self._zatvor)
@@ -652,6 +656,21 @@ class Aplikacia(tk.Tk):
         if priecinok.exists():
             otvor(priecinok)
 
+    def _textove_pole(self, rodic):
+        ram = tk.Frame(rodic, bg=KARTA, highlightbackground=OKRAJ, highlightthickness=1)
+        txt = tk.Text(ram, font=(MONO, 11), bg=KARTA, fg=TEXT, relief="flat", wrap="none", padx=16, pady=12)
+        sb = ttk.Scrollbar(ram, command=txt.yview)
+        txt.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        txt.pack(fill="both", expand=True)
+        txt.tag_configure("nadpis", font=pismo(12, True), spacing1=10, spacing3=4)
+        txt.tag_configure("sivy", foreground=SIVA)
+        txt.tag_configure("opt", foreground="#178a5e", font=(MONO, 11, "bold"))
+        txt.tag_configure("krok", foreground="#3d4a5c")
+        for m in METODY:
+            txt.tag_configure(m, foreground=FARBY[m], font=pismo(12, True), spacing1=10, spacing3=4)
+        return ram, txt
+
     def _tab_ukazka(self):
         k = self._karta(self.tab_uk, None, fill="x", pady=10)
         self.uk = {"m": tk.StringVar(value="4"), "n": tk.StringVar(value="5"),
@@ -670,19 +689,8 @@ class Aplikacia(tk.Tk):
                    command=lambda: (self.uk["id"].set(str(random.randint(1, 99_999))), self._ukazka())
                    ).pack(side="left", padx=4)
 
-        ram = tk.Frame(self.tab_uk, bg=KARTA, highlightbackground=OKRAJ, highlightthickness=1)
+        ram, self.txt = self._textove_pole(self.tab_uk)
         ram.pack(fill="both", expand=True, pady=(0, 10))
-        self.txt = tk.Text(ram, font=(MONO, 11), bg=KARTA, fg=TEXT, relief="flat", wrap="none",
-                           padx=16, pady=12)
-        sb = ttk.Scrollbar(ram, command=self.txt.yview)
-        self.txt.configure(yscrollcommand=sb.set)
-        sb.pack(side="right", fill="y")
-        self.txt.pack(fill="both", expand=True)
-        self.txt.tag_configure("nadpis", font=pismo(12, True), spacing1=10, spacing3=4)
-        self.txt.tag_configure("sivy", foreground=SIVA)
-        self.txt.tag_configure("opt", foreground="#178a5e", font=(MONO, 11, "bold"))
-        for m in METODY:
-            self.txt.tag_configure(m, foreground=FARBY[m], font=pismo(12, True), spacing1=10, spacing3=4)
         self._ukazka()
 
     def _ukazka(self):
@@ -695,7 +703,20 @@ class Aplikacia(tk.Tk):
             return
         p = dict(generator.PARAMETRE, m_rozsah=[m_, m_], n_rozsah=[n_, n_])
         nu = generator.generuj(20261025, id_, p)
-        u = metody.vyvaz(nu.C, nu.a, nu.b)
+        self._vypis_ulohu(self.txt, nu.C, nu.a, nu.b, f"Úloha č. {id_}")
+
+    def _vypis_ulohu(self, t, C, a, b, nazov: str, kroky: bool = False):
+        C = np.asarray(C, dtype=np.int64)
+        a = np.asarray(a, dtype=np.int64)
+        b = np.asarray(b, dtype=np.int64)
+        m_, n_ = C.shape
+        if a.sum() == b.sum():
+            typ = "vyrovnaná"
+        elif a.sum() > b.sum():
+            typ = f"prebytok ponuky ({cislo(a.sum())} > {cislo(b.sum())})"
+        else:
+            typ = f"prebytok dopytu ({cislo(a.sum())} < {cislo(b.sum())})"
+        u = metody.vyvaz(C, a, b)
         m, n = u.C.shape
         riadky = [f"D{i + 1}" for i in range(m)]
         stlpce = [f"O{j + 1}" for j in range(n)]
@@ -704,30 +725,27 @@ class Aplikacia(tk.Tk):
         elif u.fiktivny == "odberatel":
             stlpce[-1] = "O*"
 
-        t = self.txt
         t.configure(state="normal")
         t.delete("1.0", "end")
-        typ = {"vyrovnana": "vyrovnaná", "prebytok_ponuky": "prebytok ponuky",
-               "prebytok_dopytu": "prebytok dopytu"}[nu.typ]
-        t.insert("end", f"Úloha č. {id_}: {m_} dodávatelia × {n_} odberatelia, {typ}", "nadpis")
+        t.insert("end", f"{nazov}: {m_} dodávatelia × {n_} odberatelia, {typ}", "nadpis")
         if u.fiktivny:
             t.insert("end", f"   (pridaný fiktívny {'dodávateľ D*' if u.fiktivny == 'dodavatel' else 'odberateľ O*'}"
                             " s nulovými cenami)", "sivy")
         t.insert("end", "\n\nCeny c_ij, vpravo kapacity a_i, dole požiadavky b_j\n", "sivy")
         t.insert("end", "      " + "".join(f"{s:>6}" for s in stlpce) + "  │   a_i\n")
-        for r, riadok, a in zip(riadky, u.C, u.a):
-            t.insert("end", f"  {r:<4}" + "".join(f"{int(c):>6}" for c in riadok) + f"  │ {int(a):>5}\n")
+        for r, riadok, ai in zip(riadky, u.C, u.a):
+            t.insert("end", f"  {r:<4}" + "".join(f"{int(c):>6}" for c in riadok) + f"  │ {int(ai):>5}\n")
         t.insert("end", "  " + "─" * (4 + 6 * n) + "──┘\n")
-        t.insert("end", "  b_j " + "".join(f"{int(b):>6}" for b in u.b) + "\n")
+        t.insert("end", "  b_j " + "".join(f"{int(bj):>6}" for bj in u.b) + "\n")
 
         vysledky = []
-        for nazov, f in metody.METODY.items():
+        for nazov_m, f in metody.METODY.items():
             t0 = time.perf_counter_ns()
             start = f(u)
             t1 = time.perf_counter_ns()
-            opt = metody.modi(u, start)
+            opt = metody.modi(u, start, zapisuj=kroky)
             t2 = time.perf_counter_ns()
-            vysledky.append((nazov, start, opt, (t1 - t0) / 1e3, (t2 - t1) / 1e3))
+            vysledky.append((nazov_m, start, opt, (t1 - t0) / 1e3, (t2 - t1) / 1e3))
         z_opt = min(o.z for _, _, o, _, _ in vysledky)
 
         def plan(X, tag=None):
@@ -736,11 +754,18 @@ class Aplikacia(tk.Tk):
                 t.insert("end", f"  {r:<4}" + "".join(f"{(str(int(x)) if x else '·'):>6}" for x in riadok) + "\n",
                          tag)
 
-        for nazov, start, opt, _, _ in vysledky:
+        def pole(zhoda):
+            return f"{riadky[int(zhoda.group(1)) - 1]}–{stlpce[int(zhoda.group(2)) - 1]}"
+
+        for nazov_m, start, opt, _, _ in vysledky:
             odch = 100 * (start.z - z_opt) / z_opt if z_opt else 0
-            t.insert("end", f"\n{nazov} – {POPIS_METOD[nazov]}:  z = {start.z}", nazov)
+            t.insert("end", f"\n{nazov_m} – {POPIS_METOD[nazov_m]}:  z = {start.z}", nazov_m)
             t.insert("end", f"   (odchýlka {cislo(odch, 1)} %, MODI potrebovala {opt.kroky_modi} krokov)\n", "sivy")
             plan(start.X)
+            if kroky and opt.postup:
+                t.insert("end", "  Kroky MODI:\n", "sivy")
+                for riadok in opt.postup:
+                    t.insert("end", "    " + re.sub(r"\((\d+), (\d+)\)", pole, riadok) + "\n", "krok")
 
         t.insert("end", f"\nOptimálne riešenie (MODI):  z* = {z_opt}\n", "nadpis")
         plan(vysledky[-1][2].X, "opt")
@@ -748,11 +773,193 @@ class Aplikacia(tk.Tk):
         t.insert("end", "\nPorovnanie\n", "nadpis")
         t.insert("end", f"  {'metóda':<8}{'z':>8}{'odchýlka':>11}{'kroky MODI':>13}{'čas metódy':>13}{'čas MODI':>12}\n",
                  "sivy")
-        for nazov, start, opt, t_met, t_modi in vysledky:
+        for nazov_m, start, opt, t_met, t_modi in vysledky:
             odch = 100 * (start.z - z_opt) / z_opt if z_opt else 0
-            t.insert("end", f"  {nazov:<8}{start.z:>8}{cislo(odch, 1):>9} %{opt.kroky_modi:>13}"
+            t.insert("end", f"  {nazov_m:<8}{start.z:>8}{cislo(odch, 1):>9} %{opt.kroky_modi:>13}"
                             f"{cislo(t_met):>10} µs{cislo(t_modi):>9} µs\n")
         t.configure(state="disabled")
+
+    def _tab_vlastna(self):
+        self.vl_m = tk.StringVar(value="3")
+        self.vl_n = tk.StringVar(value="4")
+        self.vl_kroky = tk.BooleanVar(value=True)
+        self.vl_c: dict[tuple[int, int], tk.StringVar] = {}
+        self.vl_a: dict[int, tk.StringVar] = {}
+        self.vl_b: dict[int, tk.StringVar] = {}
+        self.vl_polia: dict[str, tk.Entry] = {}
+
+        lavy = ttk.Frame(self.tab_vl, style="Pozadie.TFrame")
+        lavy.pack(side="left", fill="y", padx=(0, 12), pady=10)
+        pravy = ttk.Frame(self.tab_vl, style="Pozadie.TFrame")
+        pravy.pack(side="left", fill="both", expand=True, pady=10)
+
+        k = self._karta(lavy, "Vlastná úloha", fill="x", pady=(0, 10))
+        ttk.Label(k, text="Do tabuľky napíš ceny prepravy jednej jednotky. Vpravo je, koľko má každý "
+                          "dodávateľ (a_i), dole koľko chce každý odberateľ (b_j). Ak sa ponuka nerovná dopytu, "
+                          "program pridá fiktívneho dodávateľa alebo odberateľa s cenou 0.",
+                  style="Sivy.TLabel", wraplength=560, justify="left").pack(anchor="w", pady=(0, 8))
+        riadok = ttk.Frame(k, style="Karta.TFrame")
+        riadok.pack(anchor="w", pady=(0, 6))
+        for text, var in (("Dodávatelia m", self.vl_m), ("Odberatelia n", self.vl_n)):
+            ttk.Label(riadok, text=text, style="Karta.TLabel").pack(side="left", padx=(0, 4))
+            ttk.Spinbox(riadok, from_=1, to=10, textvariable=var, width=4,
+                        command=self._vl_tabulka).pack(side="left", padx=(0, 16))
+        ttk.Button(riadok, text="Zmeniť veľkosť", style="Maly.TButton", command=self._vl_tabulka).pack(side="left")
+        riadok2 = ttk.Frame(k, style="Karta.TFrame")
+        riadok2.pack(anchor="w")
+        ttk.Button(riadok2, text="Príklad z prednášky", style="Maly.TButton",
+                   command=self._vl_priklad).pack(side="left", padx=(0, 4))
+        ttk.Button(riadok2, text="Vyplniť náhodne", style="Maly.TButton",
+                   command=self._vl_nahodne).pack(side="left", padx=(0, 4))
+        ttk.Button(riadok2, text="Vymazať", style="Maly.TButton", command=self._vl_vymaz).pack(side="left")
+
+        self.vl_karta = self._karta(lavy, "Tabuľka", fill="x", pady=(0, 10))
+        self.vl_mriezka = ttk.Frame(self.vl_karta, style="Karta.TFrame")
+        self.vl_mriezka.pack(anchor="w")
+        self.vl_sucty = ttk.Label(self.vl_karta, text="", style="Sivy.TLabel")
+        self.vl_sucty.pack(anchor="w", pady=(8, 0))
+
+        dole = ttk.Frame(lavy, style="Pozadie.TFrame")
+        dole.pack(fill="x")
+        ttk.Checkbutton(dole, text="Ukázať jednotlivé kroky MODI", variable=self.vl_kroky).pack(anchor="w",
+                                                                                              pady=(0, 6))
+        ttk.Button(dole, text="▶  Vyriešiť", style="Akcent.TButton", command=self._vl_vyries).pack(fill="x")
+
+        ram, self.vl_txt = self._textove_pole(pravy)
+        ram.pack(fill="both", expand=True)
+        self.vl_txt.insert("end", "Vyplň tabuľku vľavo a stlač Vyriešiť (alebo Enter).\n\n"
+                                  "Tip: tlačidlo „Príklad z prednášky“ vyplní úlohu z prednášky L5LZV 5-6 "
+                                  "(optimum z* = 65).", "sivy")
+        self.vl_txt.configure(state="disabled")
+        self._vl_priklad()
+
+    def _vl_premenna(self, slovnik, kluc):
+        if kluc not in slovnik:
+            slovnik[kluc] = tk.StringVar(value="")
+            slovnik[kluc].trace_add("write", lambda *_: self._vl_sucty())
+        return slovnik[kluc]
+
+    def _vl_tabulka(self):
+        try:
+            m = nacitaj_cele(self.vl_m.get(), "Dodávatelia m", 1, 10)
+            n = nacitaj_cele(self.vl_n.get(), "Odberatelia n", 1, 10)
+        except ValueError as e:
+            messagebox.showwarning("Skontroluj veľkosť", str(e), parent=self)
+            return
+        for w in self.vl_mriezka.winfo_children():
+            w.destroy()
+        self.vl_polia = {}
+
+        def bunka(var, riadok, stlpec, farba=KARTA):
+            e = tk.Entry(self.vl_mriezka, textvariable=var, width=6, justify="center", font=pismo(11),
+                         relief="solid", bd=1, highlightthickness=0, bg=farba)
+            e.zakladna_farba = farba
+            e.grid(row=riadok, column=stlpec, padx=2, pady=2, ipady=3)
+            e.bind("<Return>", lambda _: self._vl_vyries())
+            self.vl_polia[str(var)] = e
+
+        def popis(text, riadok, stlpec):
+            tk.Label(self.vl_mriezka, text=text, bg=KARTA, fg=SIVA, font=pismo(10, True)).grid(
+                row=riadok, column=stlpec, padx=4, pady=2)
+
+        for j in range(n):
+            popis(f"O{j + 1}", 0, j + 1)
+        popis("a_i", 0, n + 2)
+        for i in range(m):
+            popis(f"D{i + 1}", i + 1, 0)
+            for j in range(n):
+                bunka(self._vl_premenna(self.vl_c, (i, j)), i + 1, j + 1)
+            tk.Frame(self.vl_mriezka, bg=OKRAJ, width=2).grid(row=i + 1, column=n + 1, sticky="ns", padx=4)
+            bunka(self._vl_premenna(self.vl_a, i), i + 1, n + 2, "#eef6f1")
+        tk.Frame(self.vl_mriezka, bg=OKRAJ, height=2).grid(row=m + 1, column=1, columnspan=n, sticky="ew", pady=4)
+        popis("b_j", m + 2, 0)
+        for j in range(n):
+            bunka(self._vl_premenna(self.vl_b, j), m + 2, j + 1, "#eef3fb")
+        self._vl_sucty()
+
+    def _vl_rozmer(self):
+        return int(self.vl_m.get()), int(self.vl_n.get())
+
+    def _vl_sucty(self):
+        if not hasattr(self, "vl_sucty"):
+            return
+        try:
+            m, n = self._vl_rozmer()
+            sa = sum(int(self.vl_a[i].get()) for i in range(m))
+            sb = sum(int(self.vl_b[j].get()) for j in range(n))
+        except (ValueError, KeyError):
+            self.vl_sucty.config(text="Ponuka spolu: –   ·   Dopyt spolu: –")
+            return
+        if sa == sb:
+            stav = "vyrovnaná úloha"
+        elif sa > sb:
+            stav = f"prebytok ponuky {cislo(sa - sb)} → pridá sa fiktívny odberateľ"
+        else:
+            stav = f"prebytok dopytu {cislo(sb - sa)} → pridá sa fiktívny dodávateľ"
+        self.vl_sucty.config(text=f"Ponuka spolu: {cislo(sa)}   ·   Dopyt spolu: {cislo(sb)}   ·   {stav}")
+
+    def _vl_nastav(self, C, a, b):
+        self.vl_m.set(str(len(a)))
+        self.vl_n.set(str(len(b)))
+        for i, riadok in enumerate(C):
+            for j, c in enumerate(riadok):
+                self._vl_premenna(self.vl_c, (i, j)).set(str(c))
+        for i, x in enumerate(a):
+            self._vl_premenna(self.vl_a, i).set(str(x))
+        for j, x in enumerate(b):
+            self._vl_premenna(self.vl_b, j).set(str(x))
+        self._vl_tabulka()
+
+    def _vl_priklad(self):
+        self._vl_nastav([[3, 5, 4, 1], [2, 1, 3, 2], [4, 5, 1, 3]], [10, 20, 10], [10, 5, 5, 20])
+
+    def _vl_nahodne(self):
+        try:
+            m, n = self._vl_rozmer()
+        except ValueError:
+            m, n = 3, 4
+        rng = np.random.default_rng()
+        C = rng.integers(1, 21, size=(m, n))
+        a = rng.integers(10, 61, size=m)
+        b = generator._rozdel(rng, int(a.sum()), n, 10, 60)
+        self._vl_nastav(C.tolist(), a.tolist(), b.tolist())
+
+    def _vl_vymaz(self):
+        for var in [*self.vl_c.values(), *self.vl_a.values(), *self.vl_b.values()]:
+            var.set("")
+
+    def _vl_vyries(self):
+        try:
+            m, n = self._vl_rozmer()
+        except ValueError:
+            messagebox.showwarning("Skontroluj veľkosť", "Počet dodávateľov a odberateľov musí byť celé číslo.",
+                                   parent=self)
+            return
+        chyby = []
+        for e in self.vl_polia.values():
+            e.config(bg=e.zakladna_farba)
+
+        def hodnota(var, nazov, minimum):
+            text = var.get().replace(" ", "")
+            if text.lstrip("-").isdigit() and minimum <= int(text) <= 1_000_000_000:
+                return int(text)
+            chyby.append(nazov)
+            if str(var) in self.vl_polia:
+                self.vl_polia[str(var)].config(bg="#fde2e2")
+            return 0
+
+        C = [[hodnota(self.vl_c[(i, j)], f"c{i + 1}{j + 1}", 0) for j in range(n)] for i in range(m)]
+        a = [hodnota(self.vl_a[i], f"a{i + 1}", 1) for i in range(m)]
+        b = [hodnota(self.vl_b[j], f"b{j + 1}", 1) for j in range(n)]
+        if chyby:
+            messagebox.showwarning(
+                "Skontroluj tabuľku",
+                "Tieto polia sú prázdne alebo nesprávne (sú označené červenou):\n" + ", ".join(chyby[:20])
+                + ("…" if len(chyby) > 20 else "")
+                + "\n\nCeny musia byť celé čísla 0 alebo viac, kapacity a požiadavky celé čísla 1 alebo viac.",
+                parent=self)
+            return
+        self._vypis_ulohu(self.vl_txt, C, a, b, "Vlastná úloha", kroky=self.vl_kroky.get())
 
     def _zatvor(self):
         if self.bezi:

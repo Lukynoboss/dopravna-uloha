@@ -44,8 +44,11 @@ Ručne (ktorýkoľvek systém): `python -m venv .venv`, potom `pip install -r re
   Výpočet beží na všetkých jadrách procesora a dá sa kedykoľvek zastaviť.
 - **Export do Excelu** – súbor s výsledkami, grafmi a **vysvetlivkami v ľudskej reči**
   (hlavné zistenia vetami, čo znamená každý stĺpec, slovník pojmov, text „ako to vysvetliť vyučujúcemu“).
-- **Ukážka jednej úlohy** – malá náhodná úloha a riešenia všetkých troch metód + optimum, krok za krokom
-  porovnateľné s ručným výpočtom.
+- **Vlastná úloha** – do tabuľky zadáš vlastné ceny, kapacity a požiadavky (až 10 × 10), alebo vyplníš
+  príklad z prednášky. Program ju vyrieši metódami SZR, IM a VAM, ukáže jednotlivé kroky MODI a optimum.
+  Nevyrovnanú úlohu sám doplní fiktívnym dodávateľom alebo odberateľom.
+- **Ukážka náhodnej úlohy** – malá náhodná úloha a riešenia všetkých troch metód + optimum, porovnateľné
+  s ručným výpočtom.
 - **Vyhodnotenie** uloženého behu – podrobné štatistiky (mediány, intervaly spoľahlivosti, Wilcoxonov test) a grafy.
 
 ## Súbory
