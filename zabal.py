@@ -15,6 +15,7 @@ VYSLEDKY = {
     "vysledky/hlavny100k.xlsx": "vysledky/hlavny100k.xlsx",
     "vysledky/beh_hlavny100k.json": "vysledky/beh_hlavny100k.json",
     "sprava/sprava.docx": "vysledky/sprava.docx",
+    "sprava/navod.docx": "Navod.docx",
 }
 SPUSTITELNE = {"aplikacia.command"}
 
