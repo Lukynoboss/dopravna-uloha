@@ -116,22 +116,6 @@ def juhovychodny(u: Uloha) -> Riesenie:
     return _obsadzuj(u, _jvr_pole)
 
 
-def _svr_pole(C, riadky, stlpce):
-    return int(np.argmax(riadky)), len(stlpce) - 1 - int(np.argmax(stlpce[::-1]))
-
-
-def severovychodny(u: Uloha) -> Riesenie:
-    return _obsadzuj(u, _svr_pole)
-
-
-def _jzr_pole(C, riadky, stlpce):
-    return len(riadky) - 1 - int(np.argmax(riadky[::-1])), int(np.argmax(stlpce))
-
-
-def juhozapadny(u: Uloha) -> Riesenie:
-    return _obsadzuj(u, _jzr_pole)
-
-
 def _mdd_skore(C, riadky, stlpce):
     ri, sj = np.flatnonzero(riadky), np.flatnonzero(stlpce)
     S = C[np.ix_(ri, sj)]
@@ -204,8 +188,7 @@ def predvidava(u: Uloha) -> Riesenie:
 
 
 METODY = {"SZR": szr, "IM": indexova, "VAM": vam}
-NOVE_METODY = {"JVR": juhovychodny, "SVR": severovychodny, "JZR": juhozapadny,
-               "MDD": dvojita_diferencia, "PVM": predvidava}
+NOVE_METODY = {"JVR": juhovychodny, "MDD": dvojita_diferencia, "PVM": predvidava}
 VSETKY_METODY = {**METODY, **NOVE_METODY}
 SKUPINY = {"prednaska": list(METODY), "nove": list(NOVE_METODY), "vsetky": list(VSETKY_METODY)}
 

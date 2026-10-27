@@ -17,12 +17,11 @@ from statistiky import HIST_HRANY, VZORKA_ULOH, Statistiky
 KOREN = Path(__file__).resolve().parent
 
 NAZVY = {"SZR": "Metóda severozápadného rohu", "IM": "Indexová metóda", "VAM": "Vogelova aproximačná metóda",
-         "JVR": "Metóda juhovýchodného rohu (nová)", "SVR": "Metóda severovýchodného rohu (nová)",
-         "JZR": "Metóda juhozápadného rohu (nová)", "MDD": "Metóda dvojitej diferencie (nová)",
+         "JVR": "Metóda juhovýchodného rohu (nová)", "MDD": "Metóda dvojitej diferencie (nová)",
          "PVM": "Predvídavá metóda (nová)"}
-FARBY = {"SZR": "2B7BD6", "IM": "EE6A2C", "VAM": "1FAE7A", "JVR": "8E5BD0", "SVR": "C0398F", "JZR": "8A6D1E",
+FARBY = {"SZR": "2B7BD6", "IM": "EE6A2C", "VAM": "1FAE7A", "JVR": "8E5BD0",
          "MDD": "0F8B8D", "PVM": "D4A017"}
-ROHY = {"SZR", "JVR", "SVR", "JZR"}
+ROHY = {"SZR", "JVR"}
 POJMY_METOD = {
     "SZR": "Plní tabuľku od ľavého horného rohu („severozápad“) doprava a dole, vôbec nehľadí na ceny. Je "
            "najjednoduchšia, ale výsledok býva drahý.",
@@ -32,8 +31,6 @@ POJMY_METOD = {
            "pole). Najprv obslúži riadok alebo stĺpec s najväčšou pokutou, a to jeho najlacnejším poľom. Je "
            "náročnejšia na výpočet, ale dáva riešenie najbližšie k optimu.",
     "JVR": "Nová (vymyslená) metóda: ako SZR, ale začína v pravom dolnom rohu. Dáva vždy ten istý plán ako SZR.",
-    "SVR": "Nová (vymyslená) metóda: ako SZR, ale začína v pravom hornom rohu (odberateľov berie od posledného).",
-    "JZR": "Nová (vymyslená) metóda: ako SZR, ale začína v ľavom dolnom rohu. Dáva vždy ten istý plán ako SVR.",
     "MDD": "Nová (vymyslená) metóda dvojitej diferencie: pole dostane diferenciu riadku, ak je v ňom najlacnejšie, "
            "plus diferenciu stĺpca, ak je najlacnejšie v stĺpci; obsadí sa pole s najväčším súčtom. Kvalitou blízko VAM.",
     "PVM": "Nová (vymyslená) predvídavá metóda: v každom kroku vyskúša 3 najlepšie polia podľa MDD, zvyšok dopočíta "

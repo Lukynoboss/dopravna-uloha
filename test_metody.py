@@ -43,13 +43,6 @@ over("JVR", r.z, 100)
 over("JVR plán", r.X.tolist(), [[10, 0, 0, 0], [0, 5, 5, 10], [0, 0, 0, 10]])
 over("optimum z JVR cez MODI", modi(u, r).z, 65)
 
-print("Nové krížové rohy SVR a JZR na príklade 1")
-for meno in ("SVR", "JZR"):
-    r = VSETKY_METODY[meno](u)
-    over(meno, r.z, 90)
-    over(f"{meno} plán", r.X.tolist(), [[0, 0, 0, 10], [0, 5, 5, 10], [10, 0, 0, 0]])
-    over(f"optimum z {meno} cez MODI", modi(u, r).z, 65)
-
 print("Nové metódy MDD (dvojitá diferencia) a PVM (predvídavá) na príklade 1")
 for meno in ("MDD", "PVM"):
     r = VSETKY_METODY[meno](u)

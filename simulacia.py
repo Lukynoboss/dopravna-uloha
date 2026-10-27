@@ -139,7 +139,7 @@ def main(argv: list[str] | None = None):
     ap.add_argument("--blok", type=int, default=100, help="počet úloh v jednom bloku")
     ap.add_argument("--ticho", action="store_true", help="bez priebežného výpisu v termináli")
     ap.add_argument("--metody", choices=list(metody.SKUPINY), default="prednaska",
-                    help="prednaska = SZR, IM, VAM; nove = JVR, SVR, JZR, MDD, PVM; vsetky = všetkých osem")
+                    help="prednaska = SZR, IM, VAM; nove = JVR, MDD, PVM; vsetky = všetkých šesť")
     arg = ap.parse_args(argv)
     mena = metody.SKUPINY[arg.metody]
 

@@ -8,8 +8,6 @@ import metody
 
 NAZVY = {"SZR": "metóda severozápadného rohu", "IM": "indexová metóda", "VAM": "Vogelova aproximačná metóda",
          "JVR": "metóda juhovýchodného rohu (nová, vymyslená)",
-         "SVR": "metóda severovýchodného rohu (nová, vymyslená)",
-         "JZR": "metóda juhozápadného rohu (nová, vymyslená)",
          "MDD": "metóda dvojitej diferencie (nová, vymyslená)",
          "PVM": "predvídavá metóda (nová, vymyslená)"}
 PRAVIDLA = {
@@ -23,12 +21,6 @@ PRAVIDLA = {
     "JVR": "Zrkadlový obraz SZR: vždy obsadíme pravé dolné (juhovýchodné) pole zostávajúcej tabuľky čo najväčším "
            "množstvom min(a_i, b_j) a postupujeme doľava a hore. Na ceny sa neprihliada. Ak sa naraz vyčerpá "
            "kapacita aj požiadavka, škrtáme riadok (rovnako ako pri SZR) a stĺpec dostane ďalšie pole s nulou.",
-    "SVR": "Krížový roh: vždy obsadíme pravé horné (severovýchodné) pole zostávajúcej tabuľky čo najväčším "
-           "množstvom min(a_i, b_j) a postupujeme doľava a dole – dodávateľov berieme od prvého, odberateľov od "
-           "posledného. Na ceny sa neprihliada. Pri súčasnom vyčerpaní škrtáme riadok.",
-    "JZR": "Krížový roh: vždy obsadíme ľavé dolné (juhozápadné) pole zostávajúcej tabuľky čo najväčším "
-           "množstvom min(a_i, b_j) a postupujeme doprava a hore – dodávateľov berieme od posledného, odberateľov "
-           "od prvého. Na ceny sa neprihliada. Pri súčasnom vyčerpaní škrtáme riadok.",
     "MDD": "Ako pri VAM spočítame diferencie všetkých riadkov a stĺpcov (rozdiel dvoch najnižších cien). Každé pole "
            "dostane skóre = diferencia jeho riadku, ak je v riadku najlacnejšie, + diferencia jeho stĺpca, ak je "
            "v stĺpci najlacnejšie. Obsadíme pole s najväčším skóre čo najväčším množstvom min(a_i, b_j). Pri zhode "
@@ -107,12 +99,6 @@ def vychodiskove(u: metody.Uloha, nazov: str, v: Vypis) -> metody.Riesenie:
         elif nazov == "JVR":
             i, j = metody._jvr_pole(C, riadky, stlpce)
             dovod = f"Juhovýchodný (pravý dolný) roh zostávajúcej tabuľky je pole {v.pole(i, j)} (cena {int(C[i, j])})."
-        elif nazov == "SVR":
-            i, j = metody._svr_pole(C, riadky, stlpce)
-            dovod = f"Severovýchodný (pravý horný) roh zostávajúcej tabuľky je pole {v.pole(i, j)} (cena {int(C[i, j])})."
-        elif nazov == "JZR":
-            i, j = metody._jzr_pole(C, riadky, stlpce)
-            dovod = f"Juhozápadný (ľavý dolný) roh zostávajúcej tabuľky je pole {v.pole(i, j)} (cena {int(C[i, j])})."
         elif nazov == "MDD":
             ri, sj, S, dr, ds, skore, poradie = metody._mdd_skore(C, riadky, stlpce)
             v.t("Diferencie riadkov:   " + ",  ".join(f"{v.r[ri[k]]}: {int(dr[k])}" for k in range(len(ri))) + "\n")

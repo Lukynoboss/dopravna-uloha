@@ -32,11 +32,10 @@ from statistiky import HIST_HRANY, Statistiky
 
 KOREN = Path(__file__).resolve().parent
 METODY = list(metody.METODY)
-FARBY = {"SZR": "#2b7bd6", "IM": "#ee6a2c", "VAM": "#1fae7a", "JVR": "#8e5bd0", "SVR": "#c0398f", "JZR": "#8a6d1e",
+FARBY = {"SZR": "#2b7bd6", "IM": "#ee6a2c", "VAM": "#1fae7a", "JVR": "#8e5bd0",
          "MDD": "#0f8b8d", "PVM": "#d4a017"}
 POPIS_METOD = {"SZR": "severozápadný roh", "IM": "indexová metóda", "VAM": "Vogelova metóda",
-               "JVR": "juhovýchodný roh (nová)", "SVR": "severovýchodný roh (nová)",
-               "JZR": "juhozápadný roh (nová)", "MDD": "dvojitá diferencia (nová)",
+               "JVR": "juhovýchodný roh (nová)", "MDD": "dvojitá diferencia (nová)",
                "PVM": "predvídavá metóda (nová)"}
 
 if sys.platform == "win32":
@@ -99,9 +98,9 @@ def nacitaj_cele(text: str, nazov: str, od: int | None = None, do: int | None = 
 
 
 SKUPINY_NAZVY = {"Z prednášky: SZR, IM, VAM": "prednaska",
-                 "Len nové: JVR, SVR, JZR, MDD, PVM": "nove",
-                 "Všetky metódy (8)": "vsetky"}
-CAS_METODY = {"SZR": 0.0062, "IM": 0.0029, "VAM": 0.0030, "JVR": 0.0062, "SVR": 0.0062, "JZR": 0.0062,
+                 "Len nové: JVR, MDD, PVM": "nove",
+                 "Všetky metódy (6)": "vsetky"}
+CAS_METODY = {"SZR": 0.0062, "IM": 0.0029, "VAM": 0.0030, "JVR": 0.0062,
               "MDD": 0.0035, "PVM": 0.11}
 
 
@@ -861,11 +860,9 @@ class Aplikacia(tk.Tk):
                     "IM – indexová metóda": "IM",
                     "VAM – Vogelova aproximačná metóda": "VAM",
                     "JVR – juhovýchodný roh (nová)": "JVR",
-                    "SVR – severovýchodný roh (nová)": "SVR",
-                    "JZR – juhozápadný roh (nová)": "JZR",
                     "MDD – dvojitá diferencia (nová)": "MDD",
                     "PVM – predvídavá metóda (nová)": "PVM",
-                    "Len nové metódy (JVR, SVR, JZR, MDD, PVM) a ich porovnanie": "NOVE",
+                    "Len nové metódy (JVR, MDD, PVM) a ich porovnanie": "NOVE",
                     "Všetky metódy (aj nové) a ich porovnanie": "VSETKO"}
         nazvy = {v: k_ for k_, v in moznosti.items()}
         vyber = ttk.Combobox(k, values=list(moznosti), state="readonly", width=48, font=pismo(10))

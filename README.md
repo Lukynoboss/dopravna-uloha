@@ -42,8 +42,8 @@ Ručne (ktorýkoľvek systém): `python -m venv .venv`, potom `pip install -r re
 - **Simulácia** – zadáš ľubovoľný počet úloh (aj milióny) a parametre: veľkosť tabuľky m × n, rozsahy cien,
   podiel vyrovnaných a nevyrovnaných úloh, seed. Počas výpočtu vidíš priebeh, tabuľku a 4 živé grafy.
   Výpočet beží na všetkých jadrách procesora a dá sa kedykoľvek zastaviť. V poli **Metódy** si vyberieš, čím
-  sa počíta: metódy z prednášky (SZR, IM, VAM), len nové vymyslené metódy (JVR, SVR, JZR, MDD, PVM) alebo
-  všetkých osem naraz. Export do Excelu funguje pre každý výber; podrobné Vyhodnotenie je len pre metódy z prednášky.
+  sa počíta: metódy z prednášky (SZR, IM, VAM), len nové vymyslené metódy (JVR, MDD, PVM) alebo
+  všetkých šesť naraz. Export do Excelu funguje pre každý výber; podrobné Vyhodnotenie je len pre metódy z prednášky.
 - **Export do Excelu** – súbor s výsledkami, grafmi a **vysvetlivkami v ľudskej reči**
   (hlavné zistenia vetami, čo znamená každý stĺpec, slovník pojmov, text „ako to vysvetliť vyučujúcemu“).
 - **Vlastná úloha** – do tabuľky zadáš vlastné ceny, kapacity a požiadavky (až 10 × 10), alebo vyplníš
@@ -55,18 +55,11 @@ Ručne (ktorýkoľvek systém): `python -m venv .venv`, potom `pip install -r re
   s ručným výpočtom.
 - **Vyhodnotenie** uloženého behu – podrobné štatistiky (mediány, intervaly spoľahlivosti, Wilcoxonov test) a grafy.
 
-## Nové (vymyslené) metódy: ďalšie tri rohy
+## Nová (vymyslená) metóda: juhovýchodný roh – JVR
 
-Okrem severozápadného rohu z prednášky sú v programe aj tri vymyslené „rohové“ metódy. Všetky plnia
-tabuľku vždy maximálnym množstvom min(a_i, b_j), bez ohľadu na ceny, a pri súčasnom vyčerpaní kapacity aj
-požiadavky škrtajú riadok. Dajú sa vyskúšať vo Vlastnej úlohe aj s celým postupom.
-
-| skratka | začína v rohu | poradie dodávateľov | poradie odberateľov |
-|---|---|---|---|
-| SZR (prednáška) | ľavý horný | D1, D2, … | O1, O2, … |
-| **JVR** | pravý dolný | od posledného | od posledného |
-| **SVR** | pravý horný | D1, D2, … | od posledného |
-| **JZR** | ľavý dolný | od posledného | O1, O2, … |
+Zrkadlový obraz metódy severozápadného rohu: tabuľka sa plní od **pravého dolného** rohu doľava a hore,
+vždy maximálnym množstvom min(a_i, b_j), bez ohľadu na ceny. Pri súčasnom vyčerpaní kapacity aj požiadavky
+sa škrtá riadok (rovnako ako pri SZR). Dá sa vyskúšať vo Vlastnej úlohe aj s celým postupom.
 
 **Porovnanie na 20 000 náhodných úlohách** (rovnaké úlohy ako hlavný beh, seed 20261025):
 
@@ -74,23 +67,19 @@ požiadavky škrtajú riadok. Dajú sa vyskúšať vo Vlastnej úlohe aj s celý
 |---|---|---|---|
 | SZR | 0,03 % | 216,8 % | 26,4 |
 | JVR | 0,03 % | 216,8 % | 26,4 |
-| SVR | 0,02 % | 216,1 % | 26,5 |
-| JZR | 0,02 % | 216,1 % | 26,5 |
-| IM | 0,92 % | 36,8 % | 10,1 |
-| VAM | 5,91 % | 15,2 % | 6,3 |
 
-**Zistenia:**
+**Zistenie:** JVR dá **vždy presne ten istý prepravný plán ako SZR** (100 % úloh). Nie je to náhoda:
 
-1. **JVR dá vždy presne ten istý plán ako SZR a JZR vždy ten istý ako SVR** (100 % úloh). Predstav si všetok
-   tovar ako úsečku dĺžky T. Dodávatelia si ju rozdelia na úseky v nejakom poradí, odberatelia tiež. Rohová
-   metóda pošle z Di do Oj presne toľko, koľko sa ich úseky prekrývajú. JVR číta tú istú úsečku ako SZR, len
-   od druhého konca – a prekrytie úsekov nezávisí od smeru. Rovnako JZR je SVR čítaná odzadu. Rozdiel môže
-   byť len v tom, ktoré pole s nulou sa pri degenerácii doplní do bázy; to zmení počet krokov MODI, nie optimum.
-2. **SVR (a JZR) dáva iný plán ako SZR v každej úlohe** – obracia poradie len jednej strany, takže úseky sa
-   prekrývajú inak. Lepšia ako SZR je však len v 50,1 % úloh, teda je to hod mincou: rohové metódy
-   nehľadia na ceny, a keď sú ceny náhodné, je jedno, z ktorého rohu začneme.
-3. Ani lepší z dvoch rohov (min SZR, SVR) nepomôže: odchýlka 191,6 %. Rozhodujúce je prihliadať na ceny –
-   preto sú IM a VAM mnohonásobne lepšie.
+> Predstav si všetok tovar ako úsečku dĺžky T. Dodávatelia si ju rozdelia na úseky v poradí D1, D2, …,
+> odberatelia tiež v poradí O1, O2, … SZR pošle z Di do Oj presne toľko, koľko sa úsek Di prekrýva s úsekom Oj.
+> JVR robí to isté, len úsečku číta od druhého konca – a prekrytie úsekov nezávisí od smeru.
+
+Rozdiel môže byť len pri degenerácii – v tom, ktoré pole s nulou sa doplní do bázy. To zmení cestu metódy
+MODI (iný počet krokov v asi 12 % úloh), ale nie výsledné optimum.
+
+Skúšali sa aj „krížové“ rohy – severovýchodný (SVR) a juhozápadný (JZR). Dávali navzájom vždy rovnaký plán
+a proti SZR boli len hodom mincou (lepšie v 50,1 % úloh, priemerná odchýlka 216,1 %), preto sa z programu
+odstránili.
 
 ## Nové (vymyslené) metódy s ohľadom na ceny: MDD a PVM
 
@@ -128,7 +117,7 @@ cena najnižšia – „pozrie sa dopredu“, čo jej voľba spôsobí. Ručne j
 | súbor | čo obsahuje |
 |---|---|
 | `aplikacia.py` | grafické okno |
-| `metody.py` | algoritmy SZR, IM, VAM, nové metódy JVR, SVR, JZR, MDD, PVM, MODI, vyrovnanie úlohy, degenerácia |
+| `metody.py` | algoritmy SZR, IM, VAM, nové metódy JVR, MDD, PVM, MODI, vyrovnanie úlohy, degenerácia |
 | `generator.py` | náhodné úlohy (úloha je určená seedom a svojím číslom → výsledky sa dajú zopakovať) |
 | `simulacia.py` | hromadný výpočet na viacerých jadrách (aj z príkazového riadku) |
 | `statistiky.py` | priebežné súčty výsledkov |
