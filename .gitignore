@@ -18,7 +18,9 @@ export/
 claude/
 CLAUDE.md
 
-# správa sa generuje cez Node.js (sprava/vytvor_spravu.js)
+# skripty na vytvorenie dokumentov (Node.js) a ich podklady – na GitHube sú len hotové .docx
+sprava/*.js
+sprava/obrazky/
 node_modules/
 
 # systémové súbory
