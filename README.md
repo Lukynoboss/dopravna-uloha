@@ -19,25 +19,29 @@ Podrobne: [`vysledky/suhrn.md`](vysledky/suhrn.md), grafy v priečinku [`grafy/`
 
 ## Spustenie
 
-Potrebný je **Python 3.10 alebo novší** ([python.org/downloads](https://www.python.org/downloads/)).
-Pri prvom spustení si spúšťač sám vytvorí prostredie `.venv` a nainštaluje knižnice
-(numpy, matplotlib, openpyxl, scipy) – trvá to 1–3 minúty a treba internet. Ďalšie spustenia sú okamžité.
+1. Stiahni program: na [GitHube](https://github.com/Lukynoboss/dopravna-uloha) zelené tlačidlo **Code → Download ZIP**
+   a rozbaľ ho (napr. na Plochu).
+2. Spusti ho dvojklikom:
 
-| systém | ako spustiť |
+| systém | súbor |
 |---|---|
-| **Windows** (Intel/AMD aj **ARM**, napr. Snapdragon) | dvojklik na **`aplikacia.bat`** |
-| **macOS** (Intel aj **Apple Silicon M1–M4**) | dvojklik na **`aplikacia.command`** (prvýkrát pravým tlačidlom → Otvoriť) |
-| **Linux** (x86 aj ARM, napr. Raspberry Pi) | `bash aplikacia.command` |
+| **Windows** (Intel/AMD aj ARM) | **`aplikacia.bat`** |
+| **macOS** (Intel aj Apple M1–M4) | **`aplikacia.command`** |
 
-Poznámky:
-- Na Windows ARM nainštaluj Python vo verzii **ARM64** a pri inštalácii zaškrtni *Add python.exe to PATH*.
-- Na macOS použi Python z python.org (obsahuje tkinter). S Homebrew treba navyše `brew install python-tk`.
-- Na Linuxe treba `sudo apt install python3-tk python3-venv`.
-- Ak prenášaš priečinok na iný počítač, priečinok `.venv` vymaž – vytvorí sa znova pre daný procesor.
-- Na Windows rozbaľ program do krátkej cesty (napr. na Plochu). Vo veľmi dlhej ceste inštalácia knižníc
-  zlyhá na limite dĺžky cesty vo Windows.
+Nič iné netreba. Pri prvom spustení si program sám nainštaluje Python (ak chýba) aj knižnice. Trvá to
+1–5 minút a treba internet. Ďalšie spustenia sú okamžité.
 
-Ručne (ktorýkoľvek systém): `python -m venv .venv`, potom `pip install -r requirements.txt` a `python aplikacia.py`.
+**Mac – prvé spustenie:** macOS súbor z internetu najprv zablokuje. Klikni naň **pravým tlačidlom → Otvoriť →
+Otvoriť**. Ak ani to nepomôže (macOS 15 a novší), choď do **Nastavenia systému → Súkromie a bezpečnosť** a dole
+klikni **Napriek tomu otvoriť**. Ak Python chýba, otvorí sa oficiálny inštalátor z python.org – prejdi ho
+tlačidlami Pokračovať a program pokračuje sám.
+
+Ak niečo nejde:
+- **Windows:** ak sa Python nenainštaluje sám, stiahni ho z [python.org](https://www.python.org/downloads/),
+  zaškrtni *Add python.exe to PATH* a spusti `aplikacia.bat` znova. Program rozbaľ do krátkej cesty (napr. na
+  Plochu), vo veľmi dlhej ceste inštalácia knižníc zlyhá.
+- **Mac s Homebrew Pythonom:** treba navyše `brew install python-tk`.
+- Ak prenášaš priečinok na iný počítač, vymaž v ňom priečinok `.venv` – vytvorí sa znova.
 
 ## Čo aplikácia vie
 
@@ -142,7 +146,7 @@ python export_excel.py hlavny100k                                        # Excel
 python test_metody.py                                                    # kontrola správnosti metód
 ```
 
-(Na Windows namiesto `python` použi `.venv\Scripts\python.exe`, na macOS/Linuxe `.venv/bin/python`.)
+(Na Windows namiesto `python` použi `.venv\Scripts\python.exe`, na macOS `.venv/bin/python`.)
 
 Hlavný beh: 100 000 úloh, m aj n náhodne 3–20, ceny 1–20 alebo 1–100 (polovica úloh každý rozsah),
 50 % vyrovnaných úloh, 25 % s prebytkom ponuky, 25 % s prebytkom dopytu, seed 20261025.
