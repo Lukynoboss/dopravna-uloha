@@ -45,14 +45,25 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           merge-multiple: true
+      - run: |
+          cp sprava/navod.docx Navod.docx
+          cp sprava/sprava.docx Sprava.docx
+          cp vysledky/hlavny100k.xlsx Vysledky-100000-uloh.xlsx
       - uses: softprops/action-gh-release@v2
         with:
-          files: DopravnaUloha-*.zip
+          files: |
+            DopravnaUloha-*.zip
+            Navod.docx
+            Sprava.docx
+            Vysledky-100000-uloh.xlsx
           body: |
             Hotová aplikácia – netreba inštalovať Python. Stiahni súbor pre svoj systém, rozbaľ ho a spusti.
+
+            Dokumenty: **Navod.docx** (návod k programu), **Sprava.docx** (správa s výsledkami) a **Vysledky-100000-uloh.xlsx** (Excel s výsledkami a vysvetlivkami).
 
             - **Windows:** `DopravnaUloha-Windows.zip` → v priečinku spusti `DopravnaUloha.exe`. Ak sa objaví „Systém Windows ochránil počítač“, klikni **Ďalšie informácie → Spustiť aj tak**.
             - **Mac s čipom M1–M4:** `DopravnaUloha-Mac-Apple-M1-M4.zip`, **Mac s Intelom:** `DopravnaUloha-Mac-Intel.zip` → presuň `DopravnaUloha.app` do Aplikácií. Pri prvom spustení: pravým tlačidlom → **Otvoriť**, prípadne **Nastavenia systému → Súkromie a bezpečnosť → Napriek tomu otvoriť**.

@@ -31,6 +31,9 @@ systém, rozbaľ ho a spusti:
 | **Mac M1–M4** | `DopravnaUloha-Mac-Apple-M1-M4.zip` | `DopravnaUloha.app` (presuň ho do Aplikácií) |
 | **Mac Intel** | `DopravnaUloha-Mac-Intel.zip` | `DopravnaUloha.app` |
 
+Na tej istej stránke sú aj dokumenty: `Navod.docx` (návod k programu), `Sprava.docx` (správa s výsledkami)
+a `Vysledky-100000-uloh.xlsx` (Excel s výsledkami a vysvetlivkami).
+
 Aplikácia nie je podpísaná, preto ju systém pri prvom spustení zablokuje:
 - **Windows:** „Systém Windows ochránil počítač“ → **Ďalšie informácie → Spustiť aj tak**.
 - **Mac:** pravým tlačidlom → **Otvoriť → Otvoriť**, prípadne **Nastavenia systému → Súkromie a bezpečnosť →
