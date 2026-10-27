@@ -13,7 +13,9 @@ import matplotlib.pyplot as plt
 
 KOREN = os.path.dirname(os.path.abspath(__file__))
 METODY = ["SZR", "IM", "VAM"]
-FARBY = {"SZR": "#2a78d6", "IM": "#eb6834", "VAM": "#1baf7a"}
+FARBY = {"SZR": "#2a78d6", "IM": "#eb6834", "VAM": "#1baf7a", "JVR": "#8e5bd0", "MDD": "#0f8b8d", "PVM": "#d4a017"}
+ROHY = {"SZR", "JVR"}
+CIARY = {"JVR": (0, (5, 3)), "MDD": (0, (5, 3))}
 TYPY = ["vyrovnana", "prebytok_ponuky", "prebytok_dopytu"]
 TYPY_POPIS = {"vyrovnana": "vyrovnaná", "prebytok_ponuky": "prebytok ponuky",
               "prebytok_dopytu": "prebytok dopytu"}
@@ -49,23 +51,28 @@ def nacitaj(csv_cesta):
         for riadok in r:
             for z, i in zip(zoznamy, idx):
                 z.append(riadok[i])
+    prve_id = stl["id"][0]
+    METODY[:] = [mt for i_, mt in zip(stl["id"], stl["metoda"]) if i_ == prve_id]
+    if not {"SZR", "IM", "VAM"} <= set(METODY):
+        sys.exit("Vyhodnotenie potrebuje metódy z prednášky SZR, IM a VAM (v behu sú: " + ", ".join(METODY) + ")")
+    k_ = len(METODY)
     met = np.array([METODY.index(x) for x in stl["metoda"]], dtype=np.int64)
     ids = np.array(stl["id"], dtype=np.int64)
     poradie = np.lexsort((met, ids))
     ids, met = ids[poradie], met[poradie]
-    N = len(ids) // 3
-    if len(ids) != 3 * N or not (np.all(met.reshape(N, 3) == [0, 1, 2])
-                                 and np.all(ids.reshape(N, 3) == ids.reshape(N, 3)[:, :1])):
-        sys.exit("CSV nemá pre každú úlohu presne 3 riadky SZR/IM/VAM")
+    N = len(ids) // k_
+    if len(ids) != k_ * N or not (np.all(met.reshape(N, k_) == list(range(k_)))
+                                  and np.all(ids.reshape(N, k_) == ids.reshape(N, k_)[:, :1])):
+        sys.exit(f"CSV nemá pre každú úlohu presne {k_} riadky ({', '.join(METODY)})")
 
     def pole(k, dt):
-        return np.array(stl[k], dtype=dt)[poradie].reshape(N, 3)
+        return np.array(stl[k], dtype=dt)[poradie].reshape(N, k_)
 
     d = {
-        "id": ids.reshape(N, 3)[:, 0],
+        "id": ids.reshape(N, k_)[:, 0],
         "m": pole("m", np.int64)[:, 0],
         "n": pole("n", np.int64)[:, 0],
-        "typ": np.array(stl["typ"], dtype=object)[poradie].reshape(N, 3)[:, 0],
+        "typ": np.array(stl["typ"], dtype=object)[poradie].reshape(N, k_)[:, 0],
         "cena_max": pole("cena_max", np.int64)[:, 0],
         "deg": pole("degeneracia", np.int64),
         "z": pole("z", np.int64),
@@ -169,7 +176,7 @@ def graf_ciara(d, hodnota, ylabel, titul, subor, podiel=False, logy=False, ylim0
             v = hodnota[maska, j]
             t = podiel_ci(int(v.sum()), len(v)) if podiel else priemer_ci(v)
             x.append(stredy[k]); y.append(t[0]); lo.append(t[1]); hi.append(t[2])
-        ax.plot(x, y, "-o", color=FARBY[met], lw=2, ms=4, label=met)
+        ax.plot(x, y, marker="o", linestyle=CIARY.get(met, "-"), color=FARBY[met], lw=2, ms=4, label=met)
         ax.fill_between(x, lo, hi, color=FARBY[met], alpha=0.2, lw=0)
     ax.set_xlabel("veľkosť úlohy m·n (počet polí tabuľky, skupiny po 25)")
     ax.set_ylabel(ylabel)
@@ -178,11 +185,13 @@ def graf_ciara(d, hodnota, ylabel, titul, subor, podiel=False, logy=False, ylim0
         ax.set_yscale("log")
         form = matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}".replace(".", ","))
         ax.yaxis.set_major_formatter(form)
-        ax.yaxis.set_minor_formatter(form)
+        dolna, horna = ax.get_ylim()
+        ax.yaxis.set_minor_formatter(form if horna / max(dolna, 1e-12) < 30 else matplotlib.ticker.NullFormatter())
     elif ylim0:
         ax.set_ylim(bottom=0)
-    ax.legend(title="metóda", frameon=False)
-    fig.text(0.99, 0.01, "pás = 95 % interval spoľahlivosti", ha="right", fontsize=8, color="#52514e")
+    ax.legend(title="metóda", frameon=False, ncol=2 if len(METODY) > 3 else 1)
+    fig.text(0.99, 0.01, "pás = 95 % interval spoľahlivosti" + ("  ·  JVR (prerušovaná) leží presne na SZR"
+             if "JVR" in METODY else ""), ha="right", fontsize=8, color="#52514e")
     fig.tight_layout()
     fig.savefig(subor, dpi=150)
     plt.close(fig)
@@ -213,8 +222,11 @@ def vsetky_grafy(d, adr):
                "Čas samotnej východiskovej metódy podľa veľkosti úlohy",
                cesta("cas_metody_vs_velkost.png"), logy=True)
 
-    fig, axy = plt.subplots(1, 2, figsize=(10, 5), gridspec_kw={"width_ratios": [3, 2]})
-    for ax, mets, tit in [(axy[0], METODY, "všetky metódy"), (axy[1], ["IM", "VAM"], "detail IM a VAM")]:
+    detail = [m for m in METODY if m not in ROHY]
+    fig, axy = plt.subplots(1, 2, figsize=(12 if len(METODY) > 3 else 10, 5),
+                            gridspec_kw={"width_ratios": [3, 2]})
+    for ax, mets, tit in [(axy[0], METODY, "všetky metódy"),
+                          (axy[1], detail, "detail " + ", ".join(detail))]:
         styl_osi(ax)
         bp = ax.boxplot([d["odch"][:, METODY.index(m)] for m in mets], showfliers=False,
                         patch_artist=True, widths=0.55, medianprops={"color": "#0b0b0b", "lw": 2})
@@ -236,31 +248,34 @@ def vsetky_grafy(d, adr):
         x = np.sort(d["odch"][:, j])
         y = np.arange(1, len(x) + 1) / len(x) * 100
         krok = max(1, len(x) // 4000)
-        ax.plot(np.r_[0, x[::krok], x[-1]], np.r_[0, y[::krok], 100], color=FARBY[met], lw=2, label=met)
+        ax.plot(np.r_[0, x[::krok], x[-1]], np.r_[0, y[::krok], 100], color=FARBY[met], lw=2, label=met,
+                linestyle=CIARY.get(met, "-"))
     ax.set_xscale("symlog", linthresh=1)
     ax.set_xlabel("odchýlka od optima (%, symlog mierka)")
     ax.set_ylabel("podiel úloh s odchýlkou ≤ x (%)")
     ax.set_title("Empirická distribučná funkcia odchýlky od optima")
+    if "JVR" in METODY:
+        fig.text(0.99, 0.01, "JVR (prerušovaná) leží presne na SZR", ha="right", fontsize=8, color="#52514e")
     ax.set_ylim(0, 100)
-    ax.legend(title="metóda", frameon=False)
+    ax.legend(title="metóda", frameon=False, ncol=2 if len(METODY) > 3 else 1)
     fig.tight_layout()
     fig.savefig(cesta("ecdf_odchylky.png"), dpi=150)
     plt.close(fig)
 
     por = poradia(d["z"])
-    fig, ax = plt.subplots(figsize=(8, 4.5))
+    fig, ax = plt.subplots(figsize=(9, 1.2 + 1.1 * len(METODY)))
     styl_osi(ax)
-    odtiene = {1: 1.0, 2: 0.6, 3: 0.3}
+    odtiene = {r: a for r, a in zip(range(1, len(METODY) + 1), (1.0, 0.6, 0.35, 0.22, 0.14, 0.09, 0.06))}
     for j, met in enumerate(METODY):
         zac = 0.0
-        for r in (1, 2, 3):
+        for r in range(1, len(METODY) + 1):
             v = 100 * np.mean(por[:, j] == r)
             ax.barh(j, v, left=zac, color=FARBY[met], alpha=odtiene[r], edgecolor="white", lw=2)
-            if v > 4:
+            if v > 8:
                 ax.text(zac + v / 2, j, f"{r}. miesto\n{f(v, 1)} %", ha="center", va="center", fontsize=8,
                         color="#0b0b0b")
             zac += v
-    ax.set_yticks(range(3), METODY)
+    ax.set_yticks(range(len(METODY)), METODY)
     ax.invert_yaxis()
     ax.set_xlim(0, 100)
     ax.set_xlabel("podiel úloh (%)")
@@ -271,23 +286,23 @@ def vsetky_grafy(d, adr):
     plt.close(fig)
 
     skupiny = [(t, c) for c in (20, 100) for t in TYPY]
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(12 if len(METODY) > 3 else 10, 5))
     styl_osi(ax)
-    sirka = 0.26
+    sirka = 0.8 / len(METODY)
     for j, met in enumerate(METODY):
         y, e = [], []
         for t, c in skupiny:
             mk = (d["typ"] == t) & (d["cena_max"] == c)
             p, lo, hi = priemer_ci(d["odch"][mk, j])
             y.append(p); e.append(hi - p)
-        x = np.arange(len(skupiny)) + (j - 1) * sirka
+        x = np.arange(len(skupiny)) + (j - (len(METODY) - 1) / 2) * sirka
         ax.bar(x, y, sirka * 0.92, yerr=e, color=FARBY[met], label=met, capsize=2,
                error_kw={"ecolor": "#52514e", "lw": 1})
     ax.set_xticks(range(len(skupiny)), [f"{TYPY_POPIS[t]}\nceny 1–{c}" for t, c in skupiny], fontsize=8)
     ax.set_xlabel("typ úlohy a cenový rozsah")
     ax.set_ylabel("priemerná odchýlka od optima (%)")
     ax.set_title("Odchýlka od optima podľa typu úlohy a cenového rozsahu (úsečka = 95 % IS)")
-    ax.legend(title="metóda", frameon=False)
+    ax.legend(title="metóda", frameon=False, ncol=2 if len(METODY) > 3 else 1)
     fig.tight_layout()
     fig.savefig(cesta("odchylka_typ_cena.png"), dpi=150)
     plt.close(fig)
@@ -296,6 +311,8 @@ def vsetky_grafy(d, adr):
 
 def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
     N = len(d["id"])
+    S, I, V = METODY.index("SZR"), METODY.index("IM"), METODY.index("VAM")
+    k_ = len(METODY)
     L = []
     rel = lambda p: os.path.relpath(p, os.path.dirname(md_cesta)).replace("\\", "/")
     L.append(f"# Súhrn výsledkov – beh `{nazov}`\n")
@@ -329,7 +346,8 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
     zopt_zhoda = bool(np.all(d["z_opt"] == d["z_opt"][:, :1]))
     z_ge = bool(np.all(d["z"] >= d["z_opt"]))
     opt_zhoda = bool(np.all(d["opt"] == (d["z"] == d["z_opt"])))
-    L.append(f"Kontrola dát: z* rovnaké pre všetky 3 metódy v úlohe: **{'áno' if zopt_zhoda else 'NIE'}**; "
+    L.append(f"Metódy v behu: {', '.join(METODY)}.\n")
+    L.append(f"Kontrola dát: z* rovnaké pre všetky metódy ({k_}) v úlohe: **{'áno' if zopt_zhoda else 'NIE'}**; "
              f"z ≥ z* všade: **{'áno' if z_ge else 'NIE'}**; stĺpec `optimum` = (z = z*): "
              f"**{'áno' if opt_zhoda else 'NIE'}**.\n")
 
@@ -370,33 +388,38 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
     por = poradia(d["z"])
     r = []
     for j, met in enumerate(METODY):
-        r.append([f"**{met}**"] + [fci(podiel_ci(int(np.sum(por[:, j] == k)), N)) for k in (1, 2, 3)]
+        r.append([f"**{met}**"] + [fci(podiel_ci(int(np.sum(por[:, j] == k)), N)) for k in range(1, k_ + 1)]
                  + [f(100 * np.mean((por[:, j] == 1) & (np.sum(por == 1, axis=1) == 1)))])
-    L.append(tabulka(["metóda", "1. miesto (%)", "2. miesto (%)", "3. miesto (%)", "sama 1. (bez remízy) (%)"], r) + "\n")
+    L.append(tabulka(["metóda"] + [f"{k}. miesto (%)" for k in range(1, k_ + 1)] + ["sama 1. (bez remízy) (%)"], r)
+             + "\n")
     z = d["z"]
-    vse_rem = np.mean((z[:, 0] == z[:, 1]) & (z[:, 1] == z[:, 2])) * 100
-    poradie_ok = np.mean((z[:, 2] <= z[:, 1]) & (z[:, 1] <= z[:, 0]))
-    poradie_ostre = np.mean((z[:, 2] < z[:, 1]) & (z[:, 1] < z[:, 0]))
+    vse_rem = np.mean(np.all(z == z[:, :1], axis=1)) * 100
+    poradie_ok = np.mean((z[:, V] <= z[:, I]) & (z[:, I] <= z[:, S]))
+    poradie_ostre = np.mean((z[:, V] < z[:, I]) & (z[:, I] < z[:, S]))
     L.append(f"- Úlohy, kde platí **z(VAM) ≤ z(IM) ≤ z(SZR)**: **{fci(podiel_ci(int(round(poradie_ok * N)), N))} %** "
              f"(ostro VAM < IM < SZR: {f(100 * poradie_ostre)} %).")
-    L.append(f"- Všetky tri metódy rovnaké z: {f(vse_rem)} %.\n")
+    L.append(f"- Všetky metódy rovnaké z: {f(vse_rem)} %.\n")
 
     L.append("Párové testy (Wilcoxonov znamienkový poradový test na rozdieloch odchýlky v tej istej úlohe, "
              "obojstranný; nulové rozdiely vynechané):\n")
     r = []
-    for a, b in [("VAM", "IM"), ("VAM", "SZR"), ("IM", "SZR")]:
+    dvojice = [("VAM", "IM"), ("VAM", "SZR"), ("IM", "SZR"), ("JVR", "SZR"), ("MDD", "VAM"), ("PVM", "VAM"),
+               ("PVM", "MDD")]
+    for a, b in [(a, b) for a, b in dvojice if a in METODY and b in METODY]:
         ia, ib = METODY.index(a), METODY.index(b)
         rozd = d["odch"][:, ia] - d["odch"][:, ib]
-        test = stats.wilcoxon(rozd, zero_method="wilcox", alternative="two-sided")
+        if np.all(rozd == 0):
+            p_hod = "– (vždy rovnaké)"
+        else:
+            p_hod = p_text(stats.wilcoxon(rozd, zero_method="wilcox", alternative="two-sided").pvalue)
         r.append([f"{a} vs {b}", f(100 * np.mean(z[:, ia] < z[:, ib])), f(100 * np.mean(z[:, ia] == z[:, ib])),
-                  f(100 * np.mean(z[:, ia] > z[:, ib])), fci(priemer_ci(rozd)), f(np.median(rozd)),
-                  p_text(test.pvalue)])
+                  f(100 * np.mean(z[:, ia] > z[:, ib])), fci(priemer_ci(rozd)), f(np.median(rozd)), p_hod])
     L.append(tabulka(["dvojica A vs B", "A lepšia (%)", "remíza (%)", "B lepšia (%)",
                       "priemer rozdielu odchýlky A − B (p. b.)", "medián rozdielu (p. b.)", "p-hodnota"], r) + "\n")
     r = []
     for meno, x in [("kroky MODI", d["kroky"].astype(float)), ("celkový čas (µs)", d["t_spolu"]),
                     ("čas metódy (µs)", d["t_met"])]:
-        rozd = x[:, 2] - x[:, 1]
+        rozd = x[:, V] - x[:, I]
         test = stats.wilcoxon(rozd, zero_method="wilcox")
         r.append([meno, f(100 * np.mean(rozd < 0)), f(100 * np.mean(rozd == 0)), f(100 * np.mean(rozd > 0)),
                   fci(priemer_ci(rozd)), f(np.median(rozd)), p_text(test.pvalue)])
@@ -481,47 +504,66 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
     tmet = d["t_met"].mean(axis=0)
     js = int(np.argmin(pr_odch))
     je = int(np.argmin(tsp))
+    jk = int(np.argmin(kroky))
+    zoznam = " / ".join(METODY)
     poradie_odch = " < ".join(METODY[i] for i in np.argsort(pr_odch))
     L.append(f"- **Najsprávnejšia metóda: {METODY[js]}** – najmenšia priemerná odchýlka "
              f"({f(pr_odch[js])} %, medián {f(med_odch[js])} %) a najčastejšie trafí optimum ({f(opt[js])} %). "
-             f"Poradie podľa priemernej odchýlky: {poradie_odch}. VAM je v tej istej úlohe na 1. mieste "
-             f"v {f(100 * np.mean(por[:, 2] == 1))} % úloh; z(VAM) ≤ z(IM) ≤ z(SZR) platí v {f(100 * poradie_ok)} % úloh.")
-    jk = int(np.argmin(kroky))
-    rozd_t = d["t_spolu"][:, 2] - d["t_spolu"][:, 1]
+             f"Poradie podľa priemernej odchýlky: {poradie_odch}. {METODY[js]} je v tej istej úlohe na 1. mieste "
+             f"v {f(100 * np.mean(por[:, js] == 1))} % úloh.")
+    if js != V:
+        L.append(f"- **Z metód z prednášky je najsprávnejšia VAM** ({f(pr_odch[V])} %); z(VAM) ≤ z(IM) ≤ z(SZR) "
+                 f"platí v {f(100 * poradie_ok)} % úloh.")
+    else:
+        L.append(f"- z(VAM) ≤ z(IM) ≤ z(SZR) platí v {f(100 * poradie_ok)} % úloh.")
     L.append(f"- **Najefektívnejšia podľa celkového času (metóda + MODI): {METODY[je]}** – priemer "
-             f"{f(tsp[je], 0)} µs, medián {f(tmed[je], 0)} µs (SZR / IM / VAM = "
+             f"{f(tsp[je], 0)} µs, medián {f(tmed[je], 0)} µs ({zoznam} = "
              f"{' / '.join(f(x, 0) for x in tsp)} µs). Najkratší celkový čas má v "
              f"{f(100 * np.mean(najr == je))} % úloh.")
     L.append(f"- **Najmenej krokov MODI: {METODY[jk]}** – priemerne {f(kroky[jk], 1)} krokov "
-             f"(SZR / IM / VAM = {' / '.join(f(x, 1) for x in kroky)}); najmenej krokov má v "
+             f"({zoznam} = {' / '.join(f(x, 1) for x in kroky)}); najmenej krokov má v "
              f"{f(100 * np.mean(najk[:, jk]))} % úloh (s remízami).")
-    L.append(f"- **IM vs. VAM v čase:** VAM ušetrí čas MODI ({f(d['t_modi'][:, 1].mean(), 0)} → "
-             f"{f(d['t_modi'][:, 2].mean(), 0)} µs), ale samotná VAM trvá dlhšie ({f(tmet[1], 0)} → "
-             f"{f(tmet[2], 0)} µs, počítanie diferencií v každom kroku). Párovo je VAM celkovo pomalšia "
-             f"priemerne o {f(rozd_t.mean(), 0)} µs ({f(100 * rozd_t.mean() / tsp[1], 1)} % času IM) a rýchlejšia "
-             f"len v {f(100 * np.mean(rozd_t < 0))} % úloh – rozdiel je malý a závisí od implementácie "
-             f"(Python); SZR je síce najrýchlejšia samotná metóda ({f(tmet[0], 0)} µs), no kvôli MODI je celkovo "
-             "najpomalšia.")
-    L.append(f"- **Celkovo:** VAM je jednoznačne najsprávnejšia a potrebuje najmenej krokov MODI; v celkovom "
-             f"čase je {METODY[je]} {'mierne ' if abs(tsp[2] - tsp[1]) / tsp[1] < 0.15 else ''}vpredu. "
-             "SZR je vo všetkých podmienkach výrazne najhoršia.")
+    rozd_t = d["t_spolu"][:, V] - d["t_spolu"][:, I]
+    L.append(f"- **IM vs. VAM v čase:** VAM ušetrí čas MODI ({f(d['t_modi'][:, I].mean(), 0)} → "
+             f"{f(d['t_modi'][:, V].mean(), 0)} µs), ale samotná VAM trvá dlhšie ({f(tmet[I], 0)} → "
+             f"{f(tmet[V], 0)} µs, počítanie diferencií v každom kroku). Párovo je VAM celkovo "
+             f"{'pomalšia' if rozd_t.mean() > 0 else 'rýchlejšia'} priemerne o {f(abs(rozd_t.mean()), 0)} µs "
+             f"({f(100 * abs(rozd_t.mean()) / tsp[I], 1)} % času IM) – rozdiel je malý a závisí od implementácie "
+             f"(Python); SZR je síce najrýchlejšia samotná metóda ({f(tmet[S], 0)} µs), no kvôli MODI je celkovo "
+             "pomalá.")
+    if "JVR" in METODY:
+        jv = METODY.index("JVR")
+        L.append(f"- **JVR (nová)** dala rovnaké z ako SZR v {f(100 * np.mean(z[:, jv] == z[:, S]))} % úloh – "
+                 "juhovýchodný roh dáva vždy ten istý plán ako severozápadný.")
+    if "MDD" in METODY:
+        jm = METODY.index("MDD")
+        L.append(f"- **MDD (nová)** má priemernú odchýlku {f(pr_odch[jm])} % (VAM {f(pr_odch[V])} %) – kvalitou "
+                 f"takmer ako VAM; lepšia ako VAM je v {f(100 * np.mean(z[:, jm] < z[:, V]))} % úloh, horšia v "
+                 f"{f(100 * np.mean(z[:, jm] > z[:, V]))} %.")
+    if "PVM" in METODY:
+        jp = METODY.index("PVM")
+        L.append(f"- **PVM (nová)** má priemernú odchýlku {f(pr_odch[jp])} % a optimum trafí hneď v {f(opt[jp])} % "
+                 f"úloh; lepšia ako VAM je v {f(100 * np.mean(z[:, jp] < z[:, V]))} % úloh, horšia len v "
+                 f"{f(100 * np.mean(z[:, jp] > z[:, V]))} %. Samotná metóda však trvá priemerne {f(tmet[jp], 0)} µs "
+                 f"(VAM {f(tmet[V], 0)} µs).")
     mal = (d["mn"] <= 49)
     vel = (d["mn"] >= 250)
-    L.append(f"- **Vplyv veľkosti:** pri malých úlohách (m·n ≤ 49) trafí VAM optimum v "
-             f"{f(100 * d['opt'][mal, 2].mean())} % (IM {f(100 * d['opt'][mal, 1].mean())} %), pri veľkých "
-             f"(m·n ≥ 250) už len v {f(100 * d['opt'][vel, 2].mean())} %; počet krokov MODI rastie s veľkosťou "
-             f"pri všetkých metódach (VAM {f(d['kroky'][mal, 2].mean(), 1)} → {f(d['kroky'][vel, 2].mean(), 1)}, "
-             f"SZR {f(d['kroky'][mal, 0].mean(), 1)} → {f(d['kroky'][vel, 0].mean(), 1)}).")
-    tmal = d["t_spolu"][mal].mean(axis=0)
-    L.append(f"- Pri malých úlohách (m·n ≤ 49) je priemerný celkový čas SZR / IM / VAM = "
-             f"{f(tmal[0], 0)} / {f(tmal[1], 0)} / {f(tmal[2], 0)} µs, pri veľkých (m·n ≥ 250) "
+    b_ = METODY[js]
+    L.append(f"- **Vplyv veľkosti:** pri malých úlohách (m·n ≤ 49) trafí {b_} optimum v "
+             f"{f(100 * d['opt'][mal, js].mean())} % (VAM {f(100 * d['opt'][mal, V].mean())} %, IM "
+             f"{f(100 * d['opt'][mal, I].mean())} %), pri veľkých (m·n ≥ 250) v {f(100 * d['opt'][vel, js].mean())} %; "
+             f"počet krokov MODI rastie s veľkosťou pri všetkých metódach ({b_} {f(d['kroky'][mal, js].mean(), 1)} → "
+             f"{f(d['kroky'][vel, js].mean(), 1)}, SZR {f(d['kroky'][mal, S].mean(), 1)} → "
+             f"{f(d['kroky'][vel, S].mean(), 1)}).")
+    L.append(f"- Priemerný celkový čas {zoznam} pri malých úlohách (m·n ≤ 49): "
+             f"{' / '.join(f(x, 0) for x in d['t_spolu'][mal].mean(axis=0))} µs, pri veľkých (m·n ≥ 250): "
              f"{' / '.join(f(x, 0) for x in d['t_spolu'][vel].mean(axis=0))} µs.")
     c20, c100 = d["cena_max"] == 20, d["cena_max"] == 100
-    L.append(f"- **Cenový rozsah:** pri cenách 1–20 trafí VAM optimum v {f(100 * d['opt'][c20, 2].mean())} %, "
-             f"pri 1–100 v {f(100 * d['opt'][c100, 2].mean())} %; priemerná odchýlka VAM "
-             f"{f(d['odch'][c20, 2].mean())} % vs. {f(d['odch'][c100, 2].mean())} %.")
-    L.append(f"- **Typ úlohy:** priemerná odchýlka VAM – " + ", ".join(
-        f"{TYPY_POPIS[t]} {f(d['odch'][d['typ'] == t, 2].mean())} %" for t in TYPY) +
+    L.append(f"- **Cenový rozsah:** priemerná odchýlka pri cenách 1–20 / 1–100: " + ", ".join(
+        f"{m} {f(d['odch'][c20, j].mean())} % / {f(d['odch'][c100, j].mean())} %" for j, m in enumerate(METODY)
+        if m not in ROHY) + ".")
+    L.append(f"- **Typ úlohy:** priemerná odchýlka {b_} – " + ", ".join(
+        f"{TYPY_POPIS[t]} {f(d['odch'][d['typ'] == t, js].mean())} %" for t in TYPY) +
         "; poradie metód sa podľa typu nemení (pozri 4.4).")
     L.append("")
     with open(md_cesta, "w", encoding="utf-8") as fh:

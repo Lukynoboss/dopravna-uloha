@@ -490,7 +490,7 @@ class Aplikacia(tk.Tk):
             with open(self.cesta_csv.with_suffix(".json"), "w", encoding="utf-8") as f:
                 json.dump(info, f, ensure_ascii=False, indent=2)
             self.posledny_beh = self.nazov
-            self.btn_vyhodnot.config(state="normal" if p["metody"] == list(metody.METODY) else "disabled")
+            self.btn_vyhodnot.config(state="normal" if set(metody.METODY) <= set(p["metody"]) else "disabled")
         self.btn_start.config(state="normal")
         self.btn_stop.config(state="disabled")
         self.btn_excel.config(state="normal" if self.stat.hotovo else "disabled")

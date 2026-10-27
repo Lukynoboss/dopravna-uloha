@@ -12,8 +12,10 @@ Program porovnáva tri metódy hľadania **východiskového riešenia dopravnej 
 Z každého východiskového riešenia sa metódou **MODI** dopočíta optimum. Sleduje sa, ktorá metóda je
 **najsprávnejšia** (prvé riešenie najbližšie k optimu) a **najefektívnejšia** (najmenej krokov MODI, čas).
 
-**Výsledok na 100 000 úlohách:** VAM má priemernú odchýlku od optima 15,3 % (IM 36,8 %, SZR 216,9 %)
-a potrebuje najmenej krokov MODI (6,4; IM 10,1; SZR 26,6). Podrobne: [`vysledky/suhrn.md`](vysledky/suhrn.md).
+**Výsledok na 100 000 úlohách:** z metód z prednášky má VAM priemernú odchýlku od optima 15,3 % (IM 36,8 %,
+SZR 216,9 %) a potrebuje najmenej krokov MODI (6,4; IM 10,1; SZR 26,6). Nové metódy: MDD 15,4 %, PVM 7,8 %
+(najmenej krokov MODI – 5,0), JVR rovnako ako SZR. Hlavný beh, grafy aj súhrn obsahujú všetkých šesť metód.
+Podrobne: [`vysledky/suhrn.md`](vysledky/suhrn.md), grafy v priečinku [`grafy/`](grafy).
 
 ## Spustenie
 
@@ -43,7 +45,8 @@ Ručne (ktorýkoľvek systém): `python -m venv .venv`, potom `pip install -r re
   podiel vyrovnaných a nevyrovnaných úloh, seed. Počas výpočtu vidíš priebeh, tabuľku a 4 živé grafy.
   Výpočet beží na všetkých jadrách procesora a dá sa kedykoľvek zastaviť. V poli **Metódy** si vyberieš, čím
   sa počíta: metódy z prednášky (SZR, IM, VAM), len nové vymyslené metódy (JVR, MDD, PVM) alebo
-  všetkých šesť naraz. Export do Excelu funguje pre každý výber; podrobné Vyhodnotenie je len pre metódy z prednášky.
+  všetkých šesť naraz. Export do Excelu funguje pre každý výber; podrobné Vyhodnotenie funguje, keď sú medzi
+  metódami SZR, IM a VAM (výber z prednášky alebo všetky).
 - **Export do Excelu** – súbor s výsledkami, grafmi a **vysvetlivkami v ľudskej reči**
   (hlavné zistenia vetami, čo znamená každý stĺpec, slovník pojmov, text „ako to vysvetliť vyučujúcemu“).
 - **Vlastná úloha** – do tabuľky zadáš vlastné ceny, kapacity a požiadavky (až 10 × 10), alebo vyplníš
