@@ -11,7 +11,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-KOREN = os.path.dirname(os.path.abspath(__file__))
+import cesty
+
+KOREN = str(cesty.KOREN)
 METODY = ["SZR", "IM", "VAM"]
 FARBY = {"SZR": "#2a78d6", "IM": "#eb6834", "VAM": "#1baf7a", "JVR": "#8e5bd0", "MDD": "#0f8b8d", "PVM": "#d4a017"}
 ROHY = {"SZR", "JVR"}
@@ -570,9 +572,11 @@ def suhrn(d, param, csv_cesta, nazov, grafy, md_cesta, trvanie_nacitania):
         fh.write("\n".join(L))
 
 
-def main():
+def main(arg=None):
     t0 = time.perf_counter()
-    csv_cesta, json_cesta, nazov = najdi_subory(sys.argv[1] if len(sys.argv) > 1 else None)
+    if arg is None and len(sys.argv) > 1:
+        arg = sys.argv[1]
+    csv_cesta, json_cesta, nazov = najdi_subory(arg)
     param = {}
     if os.path.exists(json_cesta):
         with open(json_cesta, encoding="utf-8") as fh:

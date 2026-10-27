@@ -19,6 +19,26 @@ Podrobne: [`vysledky/suhrn.md`](vysledky/suhrn.md), grafy v priečinku [`grafy/`
 
 ## Spustenie
 
+### Hotová aplikácia (bez inštalácie Pythonu)
+
+Na stránke [**Releases**](https://github.com/Lukynoboss/dopravna-uloha/releases/latest) stiahni súbor pre svoj
+systém, rozbaľ ho a spusti:
+
+| systém | súbor | spustenie |
+|---|---|---|
+| **Windows** | `DopravnaUloha-Windows.zip` | `DopravnaUloha.exe` v rozbalenom priečinku |
+| **Mac M1–M4** | `DopravnaUloha-Mac-Apple-M1-M4.zip` | `DopravnaUloha.app` (presuň ho do Aplikácií) |
+| **Mac Intel** | `DopravnaUloha-Mac-Intel.zip` | `DopravnaUloha.app` |
+
+Aplikácia nie je podpísaná, preto ju systém pri prvom spustení zablokuje:
+- **Windows:** „Systém Windows ochránil počítač“ → **Ďalšie informácie → Spustiť aj tak**.
+- **Mac:** pravým tlačidlom → **Otvoriť → Otvoriť**, prípadne **Nastavenia systému → Súkromie a bezpečnosť →
+  Napriek tomu otvoriť**.
+
+Výsledky (CSV, súhrny, grafy) ukladá do priečinka **Dokumenty/DopravnaUloha**.
+
+### Zo zdrojového kódu
+
 1. Stiahni program: na [GitHube](https://github.com/Lukynoboss/dopravna-uloha) zelené tlačidlo **Code → Download ZIP**
    a rozbaľ ho (napr. na Plochu).
 2. Spusti ho dvojklikom:
@@ -133,6 +153,8 @@ cena najnižšia – „pozrie sa dopredu“, čo jej voľba spôsobí. Ručne j
 | `analyza.py` | podrobné štatistiky a grafy z uloženého behu |
 | `test_metody.py` | kontrola správnosti: príklady z prednášky + 2000 úloh porovnaných s riešičom scipy |
 | `spusti.py` | jednoduché textové menu v konzole (`spusti.bat`) |
+| `cesty.py` | kam sa ukladajú výsledky (priečinok programu, v hotovej aplikácii Dokumenty/DopravnaUloha) |
+| `.github/workflows/vydanie.yml` | GitHub zostaví hotovú aplikáciu pre Windows a Mac a dá ju do Releases |
 | `vysledky/` | výsledky hlavného behu (súhrn, Excel, parametre) |
 | `grafy/` | grafy hlavného behu |
 

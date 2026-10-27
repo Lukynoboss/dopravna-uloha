@@ -12,10 +12,11 @@ from pathlib import Path
 
 import numpy as np
 
+import cesty
 import generator
 import metody
 
-PRIECINOK = Path(__file__).resolve().parent / "vysledky"
+PRIECINOK = cesty.KOREN / "vysledky"
 
 STLPCE = ["id", "m", "n", "typ", "cena_max", "fiktivny", "metoda", "degeneracia",
           "z", "z_opt", "odchylka_pct", "optimum", "cas_metody_ns", "cas_modi_ns", "kroky_modi"]

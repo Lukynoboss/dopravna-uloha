@@ -24,13 +24,14 @@ import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
+import cesty
 import generator
 import metody
 import postup
 import simulacia
 from statistiky import HIST_HRANY, Statistiky
 
-KOREN = Path(__file__).resolve().parent
+KOREN = cesty.KOREN
 METODY = list(metody.METODY)
 FARBY = {"SZR": "#2b7bd6", "IM": "#ee6a2c", "VAM": "#1fae7a", "JVR": "#8e5bd0",
          "MDD": "#0f8b8d", "PVM": "#d4a017"}
@@ -676,11 +677,11 @@ class Aplikacia(tk.Tk):
             return
         self.lbl_stav.config(text=f"Vyhodnocujem beh {self.posledny_beh} (analyza.py)…")
         self.update_idletasks()
-        vysledok = subprocess.run([sys.executable, str(KOREN / "analyza.py"), self.posledny_beh],
-                                  cwd=KOREN, capture_output=True, text=True, encoding="utf-8", errors="replace")
-        if vysledok.returncode != 0:
-            messagebox.showerror("Vyhodnotenie zlyhalo", vysledok.stderr[-2000:] or vysledok.stdout[-2000:],
-                                 parent=self)
+        try:
+            with ProcessPoolExecutor(max_workers=1) as ex:
+                ex.submit(spusti_analyzu, self.posledny_beh).result()
+        except BaseException as e:
+            messagebox.showerror("Vyhodnotenie zlyhalo", str(e)[-2000:] or type(e).__name__, parent=self)
             return
         self.lbl_stav.config(text=f"Vyhodnotené: vysledky/suhrn_{self.posledny_beh}.md a grafy/{self.posledny_beh}/")
         priecinok = KOREN / "grafy" / self.posledny_beh
@@ -1057,6 +1058,11 @@ class Aplikacia(tk.Tk):
             self.destroy()
 
 
+def spusti_analyzu(nazov):
+    import analyza
+    analyza.main(nazov)
+
+
 def main():
     if sys.platform == "win32":
         try:
@@ -1070,4 +1076,6 @@ def main():
 
 
 if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.freeze_support()
     main()
