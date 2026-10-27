@@ -15,7 +15,8 @@ Z každého východiskového riešenia sa metódou **MODI** dopočíta optimum. 
 **Výsledok na 100 000 úlohách:** z metód z prednášky má VAM priemernú odchýlku od optima 15,3 % (IM 36,8 %,
 SZR 216,9 %) a potrebuje najmenej krokov MODI (6,4; IM 10,1; SZR 26,6). Nové metódy: MDD 15,4 %, PVM 7,8 %
 (najmenej krokov MODI – 5,0), JVR rovnako ako SZR. Hlavný beh, grafy aj súhrn obsahujú všetkých šesť metód.
-Podrobne: [`vysledky/suhrn.md`](vysledky/suhrn.md), grafy v priečinku [`grafy/`](grafy).
+Podrobne: Excel [`vysledky/hlavny100k.xlsx`](vysledky/hlavny100k.xlsx) a správa
+[`sprava/sprava.docx`](sprava/sprava.docx), návod k programu [`sprava/navod.docx`](sprava/navod.docx).
 
 ## Spustenie
 
@@ -151,12 +152,11 @@ cena najnižšia – „pozrie sa dopredu“, čo jej voľba spôsobí. Ručne j
 | `postup.py` | podrobný postup výpočtu krok za krokom (vlastná úloha) |
 | `export_excel.py` | export do Excelu s vysvetlivkami |
 | `analyza.py` | podrobné štatistiky a grafy z uloženého behu |
-| `test_metody.py` | kontrola správnosti: príklady z prednášky + 2000 úloh porovnaných s riešičom scipy |
-| `spusti.py` | jednoduché textové menu v konzole (`spusti.bat`) |
 | `cesty.py` | kam sa ukladajú výsledky (priečinok programu, v hotovej aplikácii Dokumenty/DopravnaUloha) |
+| `aplikacia.bat`, `aplikacia.command` | spúšťače pre Windows a Mac |
 | `.github/workflows/vydanie.yml` | GitHub zostaví hotovú aplikáciu pre Windows a Mac a dá ju do Releases |
-| `vysledky/` | výsledky hlavného behu (súhrn, Excel, parametre) |
-| `grafy/` | grafy hlavného behu |
+| `vysledky/hlavny100k.xlsx` | Excel s výsledkami hlavného behu a vysvetlivkami |
+| `sprava/sprava.docx`, `sprava/navod.docx` | správa a návod k programu vo Worde |
 
 ## Príkazový riadok
 
@@ -165,7 +165,6 @@ python simulacia.py --pocet 100000 --seed 20261025 --nazov hlavny100k   # hlavn�
 python simulacia.py --pocet 20000 --metody vsetky --nazov vsetky20k      # --metody prednaska | nove | vsetky
 python analyza.py hlavny100k                                             # štatistiky + grafy
 python export_excel.py hlavny100k                                        # Excel s vysvetlivkami
-python test_metody.py                                                    # kontrola správnosti metód
 ```
 
 (Na Windows namiesto `python` použi `.venv\Scripts\python.exe`, na macOS `.venv/bin/python`.)

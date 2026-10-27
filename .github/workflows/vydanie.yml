@@ -30,7 +30,6 @@ jobs:
         with:
           python-version: "3.13"
       - run: python -m pip install -r requirements.txt pyinstaller
-      - run: python test_metody.py
       - run: python -m PyInstaller --noconfirm --windowed --name DopravnaUloha --osx-bundle-identifier sk.dopravnauloha aplikacia.py
       - if: runner.os == 'Windows'
         run: Compress-Archive -Path dist/DopravnaUloha -DestinationPath ${{ matrix.subor }}

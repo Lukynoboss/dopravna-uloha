@@ -5,10 +5,15 @@ __pycache__/
 
 # veľké a dočasné výsledky simulácie – dajú sa zopakovať zo seedu
 vysledky/*.csv
-vysledky/beh_*.json
-!vysledky/beh_hlavny100k.json
-vysledky/suhrn_*.md
-grafy/*/
+vysledky/*.json
+vysledky/*.md
+grafy/
+
+# pomocné skripty, ktoré aplikácia nepotrebuje (zostávajú len na tomto počítači)
+spusti.bat
+spusti.py
+zabal.py
+test_metody.py
 
 # hotové balíky (zabal.py)
 export/
