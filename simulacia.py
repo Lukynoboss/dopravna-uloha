@@ -7,7 +7,6 @@ import os
 import platform
 import sys
 import time
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -132,6 +131,7 @@ class ZivyPriebeh:
 
 
 def main(argv: list[str] | None = None):
+    from concurrent.futures import ProcessPoolExecutor
     ap = argparse.ArgumentParser(description="Simulácia metód dopravnej úlohy")
     ap.add_argument("--pocet", type=int, default=1000, help="počet úloh")
     ap.add_argument("--seed", type=int, default=20261025)

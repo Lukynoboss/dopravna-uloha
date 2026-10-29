@@ -1,0 +1,172 @@
+:root {
+  --pozadie: #f4f6f9;
+  --karta: #ffffff;
+  --tmava: #1f2a3a;
+  --text: #1f2a3a;
+  --siva: #6b7686;
+  --akcent: #2b7bd6;
+  --cervena: #d64545;
+  --okraj: #dde3ea;
+  --zelena: #178a5e;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--pozadie);
+  color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+header {
+  background: var(--tmava);
+  color: #fff;
+  padding: 12px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 20px;
+}
+.hlavicka { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+header h1 { margin: 0; font-size: 22px; }
+header p { margin: 0; color: #aeb9c8; }
+.nacitanie { color: #ffd36b; font-weight: 600; }
+.nacitanie.hotovo { color: #7ee2b0; }
+.nacitanie.chyba { color: #ff9b9b; }
+
+.zalozky { display: flex; gap: 4px; padding: 10px 16px 0; overflow-x: auto; }
+.zalozky button {
+  border: 1px solid var(--okraj);
+  border-bottom: none;
+  background: #e9edf2;
+  color: var(--siva);
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.zalozky button.aktivna { background: var(--karta); color: var(--akcent); }
+
+main { padding: 0 16px 16px; }
+.tab { display: none; gap: 12px; padding-top: 12px; }
+.tab.aktivna { display: flex; }
+#tab-uk.aktivna { flex-direction: column; }
+
+.lavy { width: 340px; flex: none; display: flex; flex-direction: column; gap: 8px; }
+.lavy.siroky { width: 600px; }
+.pravy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.karta { background: var(--karta); border: 1px solid var(--okraj); border-radius: 8px; padding: 10px 14px; }
+.karta h2 { font-size: 14px; margin: 0 0 6px; }
+.karta h3 { font-size: 13px; margin: 0 0 6px; font-weight: 600; }
+.plna { width: 100%; }
+
+input, select {
+  font: inherit;
+  color: var(--text);
+  border: 1px solid #c8d0da;
+  border-radius: 5px;
+  padding: 4px 6px;
+  background: #fff;
+}
+input[type=number] { width: 64px; }
+#seed { width: 100px; }
+.velke { width: 100%; font-size: 22px; font-weight: 700; text-align: right; }
+select { max-width: 100%; }
+#vl-metoda { width: 100%; }
+
+button {
+  font: inherit;
+  border: 1px solid #c8d0da;
+  background: #f2f5f9;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { background: #e6ebf1; }
+button:disabled { opacity: .55; cursor: default; }
+button.maly { padding: 2px 8px; font-size: 12px; }
+button.akcent { background: var(--akcent); border-color: var(--akcent); color: #fff; font-weight: 700; padding: 9px 14px; }
+button.akcent:hover:not(:disabled) { background: #1f66b8; }
+button.stop { background: var(--cervena); border-color: var(--cervena); color: #fff; font-weight: 700; padding: 9px 14px; }
+button.stop:hover:not(:disabled) { background: #b83434; }
+.tlacidla { display: flex; gap: 6px; }
+.tlacidla button { flex: 1; }
+.siroke { width: 100%; }
+.rychle { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.rychle button { padding: 2px 8px; font-size: 12px; }
+
+.riadok { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 2px 0; }
+.riadok span { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.riadok select { width: 200px; }
+.v-riadku { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 6px 0; }
+.zaskrtni { display: flex; gap: 6px; align-items: flex-start; margin-top: 8px; }
+.sivy { color: var(--siva); font-size: 12px; margin: 6px 0 0; }
+.cervena { color: var(--cervena); }
+
+.stav-riadok { display: flex; justify-content: space-between; gap: 10px; }
+.progres { height: 14px; background: #e6ebf1; border-radius: 7px; overflow: hidden; margin: 8px 0; }
+#progres { height: 100%; width: 0; background: var(--akcent); transition: width .2s; }
+.dlazdice { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.dlazdice b { display: block; font-size: 20px; }
+.dlazdice span { color: var(--siva); font-size: 12px; }
+
+.posun { overflow-x: auto; }
+#tabulka { width: 100%; border-collapse: collapse; }
+#tabulka th { background: #eef2f7; color: var(--siva); font-size: 12px; font-weight: 600; text-align: right; padding: 5px 8px; white-space: nowrap; }
+#tabulka td { padding: 5px 8px; text-align: right; border-top: 1px solid #eef1f5; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#tabulka th:first-child, #tabulka td:first-child { text-align: left; font-weight: 600; }
+
+.grafy { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.graf { position: relative; height: 230px; }
+
+.mriezka { border-collapse: separate; border-spacing: 3px; }
+.mriezka th { color: var(--siva); font-size: 12px; padding: 0 4px; }
+.mriezka input { width: 52px; text-align: center; padding: 4px 2px; }
+.mriezka input.kapacita { background: #eef6f1; }
+.mriezka input.poziadavka { background: #eef3fb; }
+.mriezka input.zle { background: #fde2e2; border-color: var(--cervena); }
+.mriezka td.oddel { border-left: 2px solid var(--okraj); }
+
+.vypis {
+  background: var(--karta);
+  border: 1px solid var(--okraj);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 0;
+  font: 13px/1.5 var(--mono);
+  overflow: auto;
+  white-space: pre;
+  min-height: 300px;
+  flex: 1;
+}
+.vypis .nadpis { font: 700 14px/2 system-ui, sans-serif; }
+.vypis .podnadpis { font: 700 13px/2 system-ui, sans-serif; color: #1f4e79; }
+.vypis .sivy { color: var(--siva); font-size: 13px; }
+.vypis .opt { color: var(--zelena); font-weight: 700; }
+.vypis .krok { color: #3d4a5c; }
+.vypis .SZR, .vypis .IM, .vypis .VAM, .vypis .JVR, .vypis .MDD, .vypis .PVM { font: 700 14px/2.2 system-ui, sans-serif; }
+.SZR { color: #2b7bd6; } .IM { color: #ee6a2c; } .VAM { color: #1fae7a; }
+.JVR { color: #8e5bd0; } .MDD { color: #0f8b8d; } .PVM { color: #b8860b; }
+
+footer { color: var(--siva); font-size: 12px; padding: 4px 16px 20px; }
+footer a { color: var(--akcent); }
+
+@media (max-width: 1100px) {
+  .tab.aktivna { flex-direction: column; }
+  .lavy, .lavy.siroky { width: 100%; }
+  .grafy { grid-template-columns: 1fr; }
+  .dlazdice { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 520px) {
+  header { padding: 10px 16px; }
+  main { padding: 0 16px 16px; }
+  .dlazdice { grid-template-columns: repeat(2, 1fr); }
+  .riadok { flex-wrap: wrap; }
+  .riadok select { width: 100%; }
+}

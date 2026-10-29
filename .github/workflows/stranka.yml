@@ -1,0 +1,34 @@
+name: Webová verzia
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  zverejni:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.nasadenie.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir -p _site/py
+          cp web/index.html web/app.js web/python.js web/styl.css _site/
+          cp cesty.py metody.py generator.py simulacia.py statistiky.py postup.py export_excel.py web/most.py _site/py/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: nasadenie
+        uses: actions/deploy-pages@v4

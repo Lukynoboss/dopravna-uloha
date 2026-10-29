@@ -20,6 +20,13 @@ Podrobne: Excel [`vysledky/hlavny100k.xlsx`](vysledky/hlavny100k.xlsx) a správa
 
 ## Spustenie
 
+### Priamo v prehliadači (najjednoduchšie)
+
+Otvor **https://lukynoboss.github.io/dopravna-uloha/** – nič sa neinštaluje ani nepovoľuje, funguje na
+Windows, Macu aj mobile. Prvé načítanie trvá 10–30 s (stiahne sa Python pre prehliadač), potom je pripravené
+v pamäti prehliadača. Vie všetko ako aplikácia okrem tlačidla Vyhodnotiť; simulácia je v prehliadači pomalšia,
+na desaťtisíce úloh stačí.
+
 ### Hotová aplikácia (bez inštalácie Pythonu)
 
 Na stránke [**Releases**](https://github.com/Lukynoboss/dopravna-uloha/releases/latest) stiahni súbor pre svoj
@@ -158,6 +165,7 @@ cena najnižšia – „pozrie sa dopredu“, čo jej voľba spôsobí. Ručne j
 | `cesty.py` | kam sa ukladajú výsledky (priečinok programu, v hotovej aplikácii Dokumenty/DopravnaUloha) |
 | `aplikacia.bat`, `aplikacia.command` | spúšťače pre Windows a Mac |
 | `.github/workflows/vydanie.yml` | GitHub zostaví hotovú aplikáciu pre Windows a Mac a dá ju do Releases |
+| `web/` | webová verzia (Python v prehliadači cez Pyodide), `.github/workflows/stranka.yml` ju zverejní na GitHub Pages |
 | `vysledky/hlavny100k.xlsx` | Excel s výsledkami hlavného behu a vysvetlivkami |
 | `sprava/sprava.docx`, `sprava/navod.docx` | správa a návod k programu vo Worde |
 

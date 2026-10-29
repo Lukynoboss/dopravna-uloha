@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dopravná úloha</title>
+<meta name="description" content="Porovnanie metód východiskového riešenia dopravnej úlohy SZR, IM, VAM a nových metód s MODI do optima – priamo v prehliadači.">
+<link rel="stylesheet" href="styl.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <div class="hlavicka">
+    <h1>Dopravná úloha</h1>
+    <p>porovnanie metód východiskového riešenia · SZR · IM · VAM + MODI do optima</p>
+  </div>
+  <div id="nacitanie" class="nacitanie">Načítavam Python v prehliadači… (prvýkrát to trvá 10–30 s)</div>
+</header>
+
+<nav class="zalozky" role="tablist">
+  <button role="tab" data-tab="sim" class="aktivna">Simulácia</button>
+  <button role="tab" data-tab="vl">Vlastná úloha</button>
+  <button role="tab" data-tab="uk">Ukážka náhodnej úlohy</button>
+</nav>
+
+<main>
+  <section id="tab-sim" class="tab aktivna">
+    <aside class="lavy">
+      <div class="karta">
+        <h2>Koľko úloh vypočítať</h2>
+        <input id="pocet" class="velke" value="10 000" inputmode="numeric">
+        <div class="rychle">
+          <button data-pocet="1000">1 000</button>
+          <button data-pocet="10000">10 000</button>
+          <button data-pocet="100000">100 000</button>
+        </div>
+        <p id="odhad" class="sivy"></p>
+      </div>
+      <div class="tlacidla">
+        <button id="spusti" class="akcent" disabled>▶ Spustiť</button>
+        <button id="zastav" class="stop" disabled>■ Zastaviť</button>
+      </div>
+      <button id="excel" class="siroke" disabled>Export do Excelu</button>
+
+      <div class="karta">
+        <h2>Výpočet</h2>
+        <label class="riadok">Vlákna (jadrá) <input id="vlakna" type="number" min="1" max="16"></label>
+        <label class="riadok">Seed <span><input id="seed" value="20261025" inputmode="numeric"> <button id="seed-nahodny" class="maly">náhodný</button></span></label>
+        <label class="riadok">Metódy
+          <select id="skupina">
+            <option value="prednaska">Z prednášky: SZR, IM, VAM</option>
+            <option value="nove">Len nové: JVR, MDD, PVM</option>
+            <option value="vsetky">Všetky metódy (6)</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="karta">
+        <h2>Náhodné úlohy</h2>
+        <label class="riadok">Dodávatelia m <span><input id="m_od" type="number" min="2" max="60" value="3"> až <input id="m_do" type="number" min="2" max="60" value="20"></span></label>
+        <label class="riadok">Odberatelia n <span><input id="n_od" type="number" min="2" max="60" value="3"> až <input id="n_do" type="number" min="2" max="60" value="20"></span></label>
+        <label class="riadok">Ceny c_ij <span>1 – <input id="cena_a" type="number" min="1" value="20"> alebo 1 – <input id="cena_b" type="number" min="1" value="100"></span></label>
+        <label class="riadok">Podiel prvého rozsahu % <input id="podiel_a" type="number" min="0" max="100" step="5" value="50"></label>
+        <label class="riadok">Vyrovnané úlohy % <input id="vyrovnane" type="number" min="0" max="100" step="5" value="50"></label>
+        <label class="riadok">Prebytok ponuky % <input id="ponuka" type="number" min="0" max="100" step="5" value="25"></label>
+        <p id="dopyt" class="sivy"></p>
+      </div>
+    </aside>
+
+    <div class="pravy">
+      <div class="karta">
+        <div class="stav-riadok"><strong id="stav">Pripravené – nastav parametre a stlač Spustiť.</strong><strong id="pct"></strong></div>
+        <div class="progres"><div id="progres"></div></div>
+        <div class="dlazdice">
+          <div><b id="d-hotovo">–</b><span>vypočítané úlohy</span></div>
+          <div><b id="d-rychlost">–</b><span>úloh za sekundu</span></div>
+          <div><b id="d-uplynulo">–</b><span>uplynulo</span></div>
+          <div><b id="d-zostava">–</b><span>zostáva</span></div>
+          <div><b id="d-chyby">–</b><span>chyby</span></div>
+        </div>
+      </div>
+      <div class="karta">
+        <h2>Priebežné výsledky metód</h2>
+        <div class="posun">
+          <table id="tabulka">
+            <thead><tr><th>metóda</th><th>trafila optimum</th><th>priemerná odchýlka od optima</th><th>kroky MODI (priemer)</th><th>najlepšia v úlohe</th><th>čas na úlohu</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="grafy">
+        <div class="karta"><h3>Priebežný priemer odchýlky od optima (%)</h3><div class="graf"><canvas id="g1"></canvas></div></div>
+        <div class="karta"><h3>Priemerná odchýlka podľa veľkosti úlohy (%)</h3><div class="graf"><canvas id="g2"></canvas></div></div>
+        <div class="karta"><h3>Priemerný počet krokov MODI podľa veľkosti úlohy</h3><div class="graf"><canvas id="g3"></canvas></div></div>
+        <div class="karta"><h3>Rozdelenie odchýlky od optima (podiel úloh)</h3><div class="graf"><canvas id="g4"></canvas></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-vl" class="tab">
+    <aside class="lavy siroky">
+      <div class="karta">
+        <h2>Vlastná úloha</h2>
+        <p class="sivy">Do tabuľky napíš ceny prepravy jednej jednotky. Vpravo je, koľko má každý dodávateľ (a_i), dole koľko chce každý odberateľ (b_j). Ak sa ponuka nerovná dopytu, program pridá fiktívneho dodávateľa alebo odberateľa s cenou 0.</p>
+        <div class="v-riadku">
+          <label>Dodávatelia m <input id="vl-m" type="number" min="1" max="10" value="3"></label>
+          <label>Odberatelia n <input id="vl-n" type="number" min="1" max="10" value="4"></label>
+        </div>
+        <div class="v-riadku">
+          <button id="vl-priklad" class="maly">Príklad z prednášky</button>
+          <button id="vl-nahodne" class="maly">Vyplniť náhodne</button>
+          <button id="vl-vymaz" class="maly">Vymazať</button>
+        </div>
+      </div>
+      <div class="karta">
+        <h2>Tabuľka</h2>
+        <div class="posun"><table id="vl-mriezka" class="mriezka"></table></div>
+        <p id="vl-sucty" class="sivy"></p>
+      </div>
+      <div class="karta">
+        <h2>Ako počítať</h2>
+        <select id="vl-metoda">
+          <option value="VSETKY">Všetky tri metódy z prednášky a ich porovnanie</option>
+          <option value="SZR">SZR – metóda severozápadného rohu</option>
+          <option value="IM">IM – indexová metóda</option>
+          <option value="VAM">VAM – Vogelova aproximačná metóda</option>
+          <option value="JVR">JVR – juhovýchodný roh (nová)</option>
+          <option value="MDD">MDD – dvojitá diferencia (nová)</option>
+          <option value="PVM">PVM – predvídavá metóda (nová)</option>
+          <option value="NOVE">Len nové metódy (JVR, MDD, PVM) a ich porovnanie</option>
+          <option value="VSETKO">Všetky metódy (aj nové) a ich porovnanie</option>
+        </select>
+        <label class="zaskrtni"><input id="vl-postup" type="checkbox" checked> Celý postup krok za krokom (obsadzovanie polí, potenciály, Δ, obvod)</label>
+      </div>
+      <div class="tlacidla">
+        <button id="vl-vyries" class="akcent" disabled>▶ Vyriešiť</button>
+        <button id="vl-uloz">Uložiť postup</button>
+      </div>
+    </aside>
+    <div class="pravy"><pre id="vl-text" class="vypis"><span class="sivy">Vyplň tabuľku vľavo a stlač Vyriešiť (alebo Enter).
+
+Tip: tlačidlo „Príklad z prednášky“ vyplní úlohu z prednášky L5LZV 5-6 (optimum z* = 65).</span></pre></div>
+  </section>
+
+  <section id="tab-uk" class="tab">
+    <div class="karta plna">
+      <p>Vygeneruje jednu malú náhodnú úlohu a vyrieši ju metódami SZR, IM a VAM, potom MODI do optima.</p>
+      <div class="v-riadku">
+        <label>Dodávatelia m <input id="uk-m" type="number" min="2" max="10" value="4"></label>
+        <label>Odberatelia n <input id="uk-n" type="number" min="2" max="10" value="5"></label>
+        <label>Číslo úlohy <input id="uk-id" inputmode="numeric"></label>
+        <button id="uk-vyries" class="akcent" disabled>Vyriešiť</button>
+        <button id="uk-nova" class="akcent" disabled>Nová náhodná úloha</button>
+      </div>
+    </div>
+    <pre id="uk-text" class="vypis plna"></pre>
+  </section>
+</main>
+
+<footer>Výpočty bežia priamo v tvojom prehliadači (Python cez Pyodide), nič sa neodosiela na server. ·
+  <a href="https://github.com/Lukynoboss/dopravna-uloha">zdrojový kód a dokumenty na GitHube</a></footer>
+
+<script src="app.js"></script>
+</body>
+</html>
